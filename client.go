@@ -27,8 +27,15 @@ import (
 const FhirJsonMediaType = "application/fhir+json"
 
 type Client interface {
+	// Read reads a resource at the given path from the FHIR server and unmarshals it into the target.
+	// Options can be used to, e.g., add query parameters to the request.
 	Read(path string, target any, opts ...Option) error
-	Create(path string, resource any, result any) error
+	// Create creates a new resource on the FHIR server.
+	// The path is derived from the resource's resourceType.
+	// The response is unmarshaled into the result.
+	Create(resource any, result any) error
+	// Update updates the resource at the given path on the FHIR server.
+	// The response is unmarshaled into the result.
 	Update(path string, resource any, result any) error
 }
 
@@ -36,6 +43,8 @@ type HttpRequestDoer interface {
 	Do(req *http.Request) (*http.Response, error)
 }
 
+// New creates a new FHIR client with the given base URL and HTTP client.
+// The base URL should point to the FHIR server's base URL, e.g. https://example.com/fhir
 func New(fhirBaseURL *url.URL, httpClient HttpRequestDoer) *BaseClient {
 	return &BaseClient{
 		baseURL:    fhirBaseURL,
@@ -45,6 +54,7 @@ func New(fhirBaseURL *url.URL, httpClient HttpRequestDoer) *BaseClient {
 
 var _ Client = &BaseClient{}
 
+// BaseClient is a basic FHIR client that can read, create and update resources.
 type BaseClient struct {
 	baseURL    *url.URL
 	httpClient HttpRequestDoer
@@ -59,12 +69,12 @@ func (d BaseClient) Read(path string, target any, opts ...Option) error {
 	return d.doRequest(httpRequest, target, opts...)
 }
 
-func (d BaseClient) Create(path string, resource any, result any) error {
-	data, err := json.Marshal(resource)
+func (d BaseClient) Create(resource any, result any) error {
+	desc, err := DescribeResource(resource)
 	if err != nil {
 		return err
 	}
-	httpRequest, err := http.NewRequest(http.MethodPost, d.resourceURL(path).String(), io.NopCloser(bytes.NewReader(data)))
+	httpRequest, err := http.NewRequest(http.MethodPost, d.resourceURL(desc.Type).String(), io.NopCloser(bytes.NewReader(desc.Data)))
 	if err != nil {
 		return err
 	}
@@ -84,10 +94,6 @@ func (d BaseClient) Update(path string, resource any, result any) error {
 	}
 	httpRequest.Header.Add("Content-Type", FhirJsonMediaType)
 	return d.doRequest(httpRequest, result)
-}
-
-func (d BaseClient) resourceURL(path string) *url.URL {
-	return d.baseURL.JoinPath(path)
 }
 
 func (d BaseClient) doRequest(httpRequest *http.Request, target any, opts ...Option) error {
@@ -113,6 +119,35 @@ func (d BaseClient) doRequest(httpRequest *http.Request, target any, opts ...Opt
 		return fmt.Errorf("FHIR response unmarshal failed (url=%s): %w", httpRequest.URL.String(), err)
 	}
 	return nil
+}
+
+// DescribeResource is used to extract often-used information from a resource.
+func DescribeResource(resource any) (*ResourceDescription, error) {
+	data, err := json.Marshal(resource)
+	if err != nil {
+		return nil, fmt.Errorf("invalid resource of type %T: %w", resource, err)
+	}
+	var desc ResourceDescription
+	if err := json.Unmarshal(data, &desc); err != nil {
+		return nil, fmt.Errorf("invalid resource of type %T: %w", resource, err)
+	}
+	if desc.Type == "" {
+		return nil, fmt.Errorf("resourceType not present in resource of type %T", resource)
+	}
+	desc.Data = data
+	return &desc, nil
+}
+
+// ResourceDescription contains information about a resource.
+type ResourceDescription struct {
+	// Type is the resource type, e.g. "Patient".
+	Type string `json:"resourceType"`
+	// Data is the JSON representation of the resource, so that callers don't need to marshal it again.
+	Data []byte `json:"-"`
+}
+
+func (d BaseClient) resourceURL(path string) *url.URL {
+	return d.baseURL.JoinPath(path)
 }
 
 type Option func(r *http.Request)

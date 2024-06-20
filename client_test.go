@@ -62,8 +62,17 @@ func TestDefaultClient_Read(t *testing.T) {
 	})
 }
 
+var _ json.Marshaler = &Resource{}
+
 type Resource struct {
 	Id string `json:"id"`
+}
+
+func (r Resource) MarshalJSON() ([]byte, error) {
+	return json.Marshal(map[string]interface{}{
+		"id":           r.Id,
+		"resourceType": "Resource",
+	})
 }
 
 func okResponse(resource interface{}) *http.Response {

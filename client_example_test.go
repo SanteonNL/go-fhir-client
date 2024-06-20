@@ -36,3 +36,20 @@ func ExampleBaseClient_Read() {
 
 	// Output: 123
 }
+
+func ExampleBaseClient_Create() {
+	// Stub the HTTP client
+	httpClient := &requestResponder{
+		response: okResponse(Resource{Id: "123"}),
+	}
+
+	// Create the FHIR client
+	client := fhirclient.New(baseURL, httpClient)
+
+	// Create a new Resource
+	var createdResource Resource
+	_ = client.Create(Resource{}, &createdResource)
+	fmt.Println(createdResource.Id)
+
+	// Output: 123
+}
