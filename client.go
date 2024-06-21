@@ -97,10 +97,13 @@ func (d BaseClient) Update(path string, resource any, result any) error {
 }
 
 func (d BaseClient) doRequest(httpRequest *http.Request, target any, opts ...Option) error {
-	for _, opt := range opts {
-		opt(httpRequest)
-	}
 	httpRequest.Header.Add("Accept", FhirJsonMediaType)
+	// Execute pre-request options
+	for _, opt := range opts {
+		if fn, ok := opt.(PreRequestOption); ok {
+			fn(httpRequest)
+		}
+	}
 	httpResponse, err := d.httpClient.Do(httpRequest)
 	if err != nil {
 		return fmt.Errorf("FHIR request failed (url=%s): %w", httpRequest.URL.String(), err)
@@ -117,6 +120,13 @@ func (d BaseClient) doRequest(httpRequest *http.Request, target any, opts ...Opt
 	err = json.Unmarshal(data, target)
 	if err != nil {
 		return fmt.Errorf("FHIR response unmarshal failed (url=%s): %w", httpRequest.URL.String(), err)
+	}
+	for _, opt := range opts {
+		if fn, ok := opt.(PostParseOption); ok {
+			if err := fn(d, target); err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }
@@ -150,9 +160,13 @@ func (d BaseClient) resourceURL(path string) *url.URL {
 	return d.baseURL.JoinPath(path)
 }
 
-type Option func(r *http.Request)
+type Option any
 
-func QueryParam(key, value string) Option {
+type PreRequestOption func(r *http.Request)
+
+type PostParseOption func(client Client, result any) error
+
+func QueryParam(key, value string) PreRequestOption {
 	return func(r *http.Request) {
 		q := r.URL.Query()
 		q.Add(key, value)
