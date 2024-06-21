@@ -1,3 +1,4 @@
+//go:generate mockgen -destination=client_mock_test.go -package=fhirclient_test -source=client.go
 /*
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -136,6 +137,16 @@ type requestResponder struct {
 func (s *requestResponder) Do(req *http.Request) (*http.Response, error) {
 	s.request = req
 	return s.response, nil
+}
+
+type requestsResponder struct {
+	requests  []*http.Request
+	responses []*http.Response
+}
+
+func (s *requestsResponder) Do(req *http.Request) (*http.Response, error) {
+	s.requests = append(s.requests, req)
+	return s.responses[len(s.requests)-1], nil
 }
 
 var baseURL, _ = url.Parse("http://example.com/fhir")
