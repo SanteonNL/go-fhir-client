@@ -33,10 +33,10 @@ type Client interface {
 	// Create creates a new resource on the FHIR server.
 	// The path is derived from the resource's resourceType.
 	// The response is unmarshaled into the result.
-	Create(resource any, result any) error
+	Create(resource any, result any, opts ...Option) error
 	// Update updates the resource at the given path on the FHIR server.
 	// The response is unmarshaled into the result.
-	Update(path string, resource any, result any) error
+	Update(path string, resource any, result any, opts ...Option) error
 }
 
 type HttpRequestDoer interface {
@@ -61,7 +61,8 @@ type BaseClient struct {
 }
 
 func (d BaseClient) Read(path string, target any, opts ...Option) error {
-	httpRequest, err := http.NewRequest(http.MethodGet, d.resourceURL(path).String(), nil)
+	opts = append([]Option{AtPath(path)}, opts...)
+	httpRequest, err := http.NewRequest(http.MethodGet, d.baseURL.String(), nil)
 	if err != nil {
 		return err
 	}
@@ -69,36 +70,38 @@ func (d BaseClient) Read(path string, target any, opts ...Option) error {
 	return d.doRequest(httpRequest, target, opts...)
 }
 
-func (d BaseClient) Create(resource any, result any) error {
+func (d BaseClient) Create(resource any, result any, opts ...Option) error {
 	desc, err := DescribeResource(resource)
 	if err != nil {
 		return err
 	}
-	httpRequest, err := http.NewRequest(http.MethodPost, d.resourceURL(desc.Type).String(), io.NopCloser(bytes.NewReader(desc.Data)))
+	opts = append([]Option{AtPath(desc.Type)}, opts...)
+	httpRequest, err := http.NewRequest(http.MethodPost, d.baseURL.String(), io.NopCloser(bytes.NewReader(desc.Data)))
 	if err != nil {
 		return err
 	}
 
 	httpRequest.Header.Add("Content-Type", FhirJsonMediaType)
-	return d.doRequest(httpRequest, result)
+	return d.doRequest(httpRequest, result, opts...)
 }
 
-func (d BaseClient) Update(path string, resource any, result any) error {
+func (d BaseClient) Update(path string, resource any, result any, opts ...Option) error {
 	data, err := json.Marshal(resource)
 	if err != nil {
 		return err
 	}
-	httpRequest, err := http.NewRequest(http.MethodPut, d.resourceURL(path).String(), io.NopCloser(bytes.NewReader(data)))
+	opts = append([]Option{AtPath(path)}, opts...)
+	httpRequest, err := http.NewRequest(http.MethodPut, d.baseURL.String(), io.NopCloser(bytes.NewReader(data)))
 	if err != nil {
 		return err
 	}
 	httpRequest.Header.Add("Content-Type", FhirJsonMediaType)
-	return d.doRequest(httpRequest, result)
+	return d.doRequest(httpRequest, result, opts...)
 }
 
 func (d BaseClient) doRequest(httpRequest *http.Request, target any, opts ...Option) error {
 	for _, opt := range opts {
-		opt(httpRequest)
+		opt(d.baseURL, httpRequest)
 	}
 	httpRequest.Header.Add("Accept", FhirJsonMediaType)
 	httpResponse, err := d.httpClient.Do(httpRequest)
@@ -150,12 +153,19 @@ func (d BaseClient) resourceURL(path string) *url.URL {
 	return d.baseURL.JoinPath(path)
 }
 
-type Option func(r *http.Request)
+type Option func(*url.URL, *http.Request)
 
 func QueryParam(key, value string) Option {
-	return func(r *http.Request) {
+	return func(_ *url.URL, r *http.Request) {
 		q := r.URL.Query()
 		q.Add(key, value)
 		r.URL.RawQuery = q.Encode()
+	}
+}
+
+// AtPath sets the path of the request. The path is appended to the base URL.
+func AtPath(path string) Option {
+	return func(baseURL *url.URL, r *http.Request) {
+		r.URL = baseURL.JoinPath(path)
 	}
 }

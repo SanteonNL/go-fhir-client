@@ -60,6 +60,48 @@ func TestDefaultClient_Read(t *testing.T) {
 		require.NotNil(t, result)
 		assert.Equal(t, "http://example.com/fhir/Resource?_count=1&_id=123", stub.request.URL.String())
 	})
+	t.Run("at path", func(t *testing.T) {
+		stub := &requestResponder{
+			response: okResponse(Resource{Id: "123"}),
+		}
+		client := fhirclient.New(baseURL, stub)
+		var result Resource
+
+		err := client.Read("Resource", &result, fhirclient.AtPath("123"))
+
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		assert.Equal(t, "http://example.com/fhir/123", stub.request.URL.String())
+	})
+}
+
+func TestBaseClient_Create(t *testing.T) {
+	t.Run("derive path from resource type", func(t *testing.T) {
+		stub := &requestResponder{
+			response: okResponse(Resource{Id: "123"}),
+		}
+		client := fhirclient.New(baseURL, stub)
+		var result Resource
+
+		err := client.Create(Resource{Id: "123"}, &result)
+
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		assert.Equal(t, "http://example.com/fhir/Resource", stub.request.URL.String())
+	})
+	t.Run("path is set using option", func(t *testing.T) {
+		stub := &requestResponder{
+			response: okResponse(Resource{Id: "123"}),
+		}
+		client := fhirclient.New(baseURL, stub)
+		var result Resource
+
+		err := client.Create(Resource{Id: "123"}, &result, fhirclient.AtPath("123"))
+
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		assert.Equal(t, "http://example.com/fhir/123", stub.request.URL.String())
+	})
 }
 
 var _ json.Marshaler = &Resource{}
