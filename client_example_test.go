@@ -27,7 +27,7 @@ func ExampleBaseClient_Read() {
 	}
 
 	// Create the FHIR client
-	client := fhirclient.New(baseURL, httpClient)
+	client := fhirclient.New(baseURL, httpClient, nil)
 
 	// Read a Resource/123 (e.g. Patient)
 	var result Resource
@@ -44,7 +44,7 @@ func ExampleBaseClient_Create() {
 	}
 
 	// Create the FHIR client
-	client := fhirclient.New(baseURL, httpClient)
+	client := fhirclient.New(baseURL, httpClient, nil)
 
 	// Create a new Resource
 	var createdResource Resource

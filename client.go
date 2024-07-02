@@ -45,10 +45,37 @@ type HttpRequestDoer interface {
 
 // New creates a new FHIR client with the given base URL and HTTP client.
 // The base URL should point to the FHIR server's base URL, e.g. https://example.com/fhir
-func New(fhirBaseURL *url.URL, httpClient HttpRequestDoer) *BaseClient {
+// If no config is passed, the default configuration is used.
+func New(fhirBaseURL *url.URL, httpClient HttpRequestDoer, config *Config) *BaseClient {
+	var cfg Config
+	if config != nil {
+		cfg = *config
+		if cfg.MaxResponseSize == 0 {
+			// In case people supply a config but forget to set max. response size.
+			cfg.MaxResponseSize = DefaultConfig().MaxResponseSize
+		}
+	} else {
+		cfg = DefaultConfig()
+	}
 	return &BaseClient{
 		baseURL:    fhirBaseURL,
 		httpClient: httpClient,
+		config:     cfg,
+	}
+}
+
+type Config struct {
+	// Non2xxStatusHandler is called when a non-2xx status code is returned by the FHIR server.
+	// Its primary use is logging.
+	Non2xxStatusHandler func(response *http.Response, responseBody []byte)
+	// MaxResponseSize is the maximum size of a response body in bytes that will be read.
+	MaxResponseSize int
+}
+
+func DefaultConfig() Config {
+	return Config{
+		// 10mb
+		MaxResponseSize: 10 * 1024 * 1024,
 	}
 }
 
@@ -58,6 +85,7 @@ var _ Client = &BaseClient{}
 type BaseClient struct {
 	baseURL    *url.URL
 	httpClient HttpRequestDoer
+	config     Config
 }
 
 func (d BaseClient) Read(path string, target any, opts ...Option) error {
@@ -109,12 +137,18 @@ func (d BaseClient) doRequest(httpRequest *http.Request, target any, opts ...Opt
 		return fmt.Errorf("FHIR request failed (url=%s): %w", httpRequest.URL.String(), err)
 	}
 	defer httpResponse.Body.Close()
-	if httpResponse.StatusCode < 200 || httpResponse.StatusCode >= 300 {
-		return fmt.Errorf("FHIR request failed (url=%s, status=%d)", httpRequest.URL.String(), httpResponse.StatusCode)
-	}
-	data, err := io.ReadAll(httpResponse.Body)
+	data, err := io.ReadAll(io.LimitReader(httpResponse.Body, int64(d.config.MaxResponseSize+1)))
 	if err != nil {
 		return fmt.Errorf("FHIR response read failed (url=%s): %w", httpRequest.URL.String(), err)
+	}
+	if httpResponse.StatusCode < 200 || httpResponse.StatusCode >= 300 {
+		if d.config.Non2xxStatusHandler != nil {
+			d.config.Non2xxStatusHandler(httpResponse, data)
+		}
+		return fmt.Errorf("FHIR request failed (url=%s, status=%d)", httpRequest.URL.String(), httpResponse.StatusCode)
+	}
+	if len(data) > d.config.MaxResponseSize {
+		return fmt.Errorf("FHIR response exceeds max. safety limit of %d bytes (url=%s)", d.config.MaxResponseSize, httpRequest.URL.String())
 	}
 	// TODO: Handle errornous responses (OperationOutcome?)
 	err = json.Unmarshal(data, target)

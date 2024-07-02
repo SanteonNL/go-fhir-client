@@ -32,7 +32,7 @@ func TestDefaultClient_Read(t *testing.T) {
 		stub := &requestResponder{
 			response: okResponse(Resource{Id: "123"}),
 		}
-		client := fhirclient.New(baseURL, stub)
+		client := fhirclient.New(baseURL, stub, nil)
 		var result Resource
 
 		err := client.Read("Resource/123", &result)
@@ -51,7 +51,7 @@ func TestDefaultClient_Read(t *testing.T) {
 		stub := &requestResponder{
 			response: okResponse(Resource{Id: "123"}),
 		}
-		client := fhirclient.New(baseURL, stub)
+		client := fhirclient.New(baseURL, stub, nil)
 		var result Resource
 
 		err := client.Read("Resource", &result, fhirclient.QueryParam("_id", "123"), fhirclient.QueryParam("_count", "1"))
@@ -64,7 +64,7 @@ func TestDefaultClient_Read(t *testing.T) {
 		stub := &requestResponder{
 			response: okResponse(Resource{Id: "123"}),
 		}
-		client := fhirclient.New(baseURL, stub)
+		client := fhirclient.New(baseURL, stub, nil)
 		var result Resource
 
 		err := client.Read("Resource", &result, fhirclient.AtPath("123"))
@@ -80,7 +80,7 @@ func TestBaseClient_Create(t *testing.T) {
 		stub := &requestResponder{
 			response: okResponse(Resource{Id: "123"}),
 		}
-		client := fhirclient.New(baseURL, stub)
+		client := fhirclient.New(baseURL, stub, nil)
 		var result Resource
 
 		err := client.Create(Resource{Id: "123"}, &result)
@@ -93,7 +93,7 @@ func TestBaseClient_Create(t *testing.T) {
 		stub := &requestResponder{
 			response: okResponse(Resource{Id: "123"}),
 		}
-		client := fhirclient.New(baseURL, stub)
+		client := fhirclient.New(baseURL, stub, nil)
 		var result Resource
 
 		err := client.Create(Resource{Id: "123"}, &result, fhirclient.AtPath("123"))
@@ -101,6 +101,58 @@ func TestBaseClient_Create(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, result)
 		assert.Equal(t, "http://example.com/fhir/123", stub.request.URL.String())
+	})
+}
+
+func TestDefaultClient_doRequest(t *testing.T) {
+	t.Run("non-2xx status code", func(t *testing.T) {
+		stub := &requestResponder{
+			response: &http.Response{
+				StatusCode: http.StatusNotFound,
+				Header: map[string][]string{
+					"Content-Type": {fhirclient.FhirJsonMediaType},
+				},
+				Body: io.NopCloser(bytes.NewReader([]byte(`{}`))),
+			},
+		}
+		var result Resource
+		t.Run("with handler", func(t *testing.T) {
+			var capturedResponseBody []byte
+			client := fhirclient.New(baseURL, stub, &fhirclient.Config{
+				Non2xxStatusHandler: func(response *http.Response, responseBody []byte) {
+					capturedResponseBody = responseBody
+				},
+			})
+
+			err := client.Read("Resource/123", &result)
+
+			require.Error(t, err)
+			assert.Equal(t, []byte(`{}`), capturedResponseBody)
+		})
+		t.Run("without handler", func(t *testing.T) {
+			client := fhirclient.New(baseURL, stub, nil)
+
+			err := client.Read("Resource/123", &result)
+
+			require.Error(t, err)
+		})
+	})
+	t.Run("max. response size exceeded", func(t *testing.T) {
+		stub := &requestResponder{
+			response: &http.Response{
+				StatusCode: http.StatusOK,
+				Header: map[string][]string{
+					"Content-Type": {fhirclient.FhirJsonMediaType},
+				},
+				Body: io.NopCloser(bytes.NewReader([]byte("Hello, World!"))),
+			},
+		}
+		client := fhirclient.New(baseURL, stub, &fhirclient.Config{MaxResponseSize: 2})
+		var result Resource
+
+		err := client.Read("Resource/123", &result)
+
+		require.EqualError(t, err, "FHIR response exceeds max. safety limit of 2 bytes (url=http://example.com/fhir/Resource/123)")
 	})
 }
 
