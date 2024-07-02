@@ -11,6 +11,7 @@ package fhirclient_test
 
 import (
 	http "net/http"
+	url "net/url"
 	reflect "reflect"
 
 	fhirclient "github.com/SanteonNL/go-fhir-client"
@@ -41,17 +42,40 @@ func (m *MockClient) EXPECT() *MockClientMockRecorder {
 }
 
 // Create mocks base method.
-func (m *MockClient) Create(resource, result any) error {
+func (m *MockClient) Create(resource, result any, opts ...fhirclient.Option) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Create", resource, result)
+	varargs := []any{resource, result}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "Create", varargs...)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Create indicates an expected call of Create.
-func (mr *MockClientMockRecorder) Create(resource, result any) *gomock.Call {
+func (mr *MockClientMockRecorder) Create(resource, result any, opts ...any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockClient)(nil).Create), resource, result)
+	varargs := append([]any{resource, result}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockClient)(nil).Create), varargs...)
+}
+
+// Path mocks base method.
+func (m *MockClient) Path(path ...string) *url.URL {
+	m.ctrl.T.Helper()
+	varargs := []any{}
+	for _, a := range path {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "Path", varargs...)
+	ret0, _ := ret[0].(*url.URL)
+	return ret0
+}
+
+// Path indicates an expected call of Path.
+func (mr *MockClientMockRecorder) Path(path ...any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Path", reflect.TypeOf((*MockClient)(nil).Path), path...)
 }
 
 // Read mocks base method.
@@ -74,17 +98,22 @@ func (mr *MockClientMockRecorder) Read(path, target any, opts ...any) *gomock.Ca
 }
 
 // Update mocks base method.
-func (m *MockClient) Update(path string, resource, result any) error {
+func (m *MockClient) Update(path string, resource, result any, opts ...fhirclient.Option) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Update", path, resource, result)
+	varargs := []any{path, resource, result}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "Update", varargs...)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Update indicates an expected call of Update.
-func (mr *MockClientMockRecorder) Update(path, resource, result any) *gomock.Call {
+func (mr *MockClientMockRecorder) Update(path, resource, result any, opts ...any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockClient)(nil).Update), path, resource, result)
+	varargs := append([]any{path, resource, result}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockClient)(nil).Update), varargs...)
 }
 
 // MockHttpRequestDoer is a mock of HttpRequestDoer interface.
