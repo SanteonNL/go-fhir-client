@@ -141,6 +141,14 @@ func (d BaseClient) doRequest(httpRequest *http.Request, target any, opts ...Opt
 			fn(d, httpRequest)
 		}
 	}
+	// recreate HTTP request in case URL, body or method was edited by one of the options
+	newHttpRequest, err := http.NewRequestWithContext(httpRequest.Context(), httpRequest.Method, httpRequest.URL.String(), httpRequest.Body)
+	if err != nil {
+		return err
+	}
+	newHttpRequest.Header = httpRequest.Header
+	*httpRequest = *newHttpRequest
+
 	httpResponse, err := d.httpClient.Do(httpRequest)
 	if err != nil {
 		return fmt.Errorf("FHIR request failed (url=%s): %w", httpRequest.URL.String(), err)

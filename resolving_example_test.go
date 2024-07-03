@@ -39,7 +39,7 @@ func ExampleResolveRef() {
 	}
 
 	// Create the FHIR client
-	client := fhirclient.New(baseURL, httpClient)
+	client := fhirclient.New(baseURL, httpClient, nil)
 
 	// Read a Resource/123 (e.g. Patient)
 	var reffingResource RefResource
