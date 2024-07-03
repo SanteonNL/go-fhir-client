@@ -37,6 +37,8 @@ type Client interface {
 	// Update updates the resource at the given path on the FHIR server.
 	// The response is unmarshaled into the result.
 	Update(path string, resource any, result any, opts ...Option) error
+	// Path returns the full URL for the given path.
+	Path(path ...string) *url.URL
 }
 
 type HttpRequestDoer interface {
@@ -88,6 +90,10 @@ type BaseClient struct {
 	config     Config
 }
 
+func (d BaseClient) Path(path ...string) *url.URL {
+	return d.baseURL.JoinPath(path...)
+}
+
 func (d BaseClient) Read(path string, target any, opts ...Option) error {
 	opts = append([]Option{AtPath(path)}, opts...)
 	httpRequest, err := http.NewRequest(http.MethodGet, d.baseURL.String(), nil)
@@ -128,10 +134,13 @@ func (d BaseClient) Update(path string, resource any, result any, opts ...Option
 }
 
 func (d BaseClient) doRequest(httpRequest *http.Request, target any, opts ...Option) error {
-	for _, opt := range opts {
-		opt(d.baseURL, httpRequest)
-	}
 	httpRequest.Header.Add("Accept", FhirJsonMediaType)
+	// Execute pre-request options
+	for _, opt := range opts {
+		if fn, ok := opt.(PreRequestOption); ok {
+			fn(d, httpRequest)
+		}
+	}
 	httpResponse, err := d.httpClient.Do(httpRequest)
 	if err != nil {
 		return fmt.Errorf("FHIR request failed (url=%s): %w", httpRequest.URL.String(), err)
@@ -154,6 +163,13 @@ func (d BaseClient) doRequest(httpRequest *http.Request, target any, opts ...Opt
 	err = json.Unmarshal(data, target)
 	if err != nil {
 		return fmt.Errorf("FHIR response unmarshal failed (url=%s): %w", httpRequest.URL.String(), err)
+	}
+	for _, opt := range opts {
+		if fn, ok := opt.(PostParseOption); ok {
+			if err := fn(d, target); err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }
@@ -183,14 +199,14 @@ type ResourceDescription struct {
 	Data []byte `json:"-"`
 }
 
-func (d BaseClient) resourceURL(path string) *url.URL {
-	return d.baseURL.JoinPath(path)
-}
+type Option any
 
-type Option func(*url.URL, *http.Request)
+type PreRequestOption func(client Client, r *http.Request)
 
-func QueryParam(key, value string) Option {
-	return func(_ *url.URL, r *http.Request) {
+type PostParseOption func(client Client, result any) error
+
+func QueryParam(key, value string) PreRequestOption {
+	return func(_ Client, r *http.Request) {
 		q := r.URL.Query()
 		q.Add(key, value)
 		r.URL.RawQuery = q.Encode()
@@ -198,8 +214,8 @@ func QueryParam(key, value string) Option {
 }
 
 // AtPath sets the path of the request. The path is appended to the base URL.
-func AtPath(path string) Option {
-	return func(baseURL *url.URL, r *http.Request) {
-		r.URL = baseURL.JoinPath(path)
+func AtPath(path string) PreRequestOption {
+	return func(client Client, r *http.Request) {
+		r.URL = client.Path(path)
 	}
 }
