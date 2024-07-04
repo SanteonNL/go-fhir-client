@@ -22,6 +22,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"time"
 )
 
 const FhirJsonMediaType = "application/fhir+json"
@@ -153,6 +154,13 @@ func (d BaseClient) doRequest(httpRequest *http.Request, target any, opts ...Opt
 	if err != nil {
 		return fmt.Errorf("FHIR request failed (%s %s): %w", httpRequest.Method, httpRequest.URL.String(), err)
 	}
+	for _, opt := range opts {
+		if fn, ok := opt.(PostRequestOption); ok {
+			if err := fn(d, httpResponse); err != nil {
+				return err
+			}
+		}
+	}
 	defer httpResponse.Body.Close()
 	data, err := io.ReadAll(io.LimitReader(httpResponse.Body, int64(d.config.MaxResponseSize+1)))
 	if err != nil {
@@ -209,8 +217,13 @@ type ResourceDescription struct {
 
 type Option any
 
+// PreRequestOption is an option that processes the HTTP request before it is sent.
 type PreRequestOption func(client Client, r *http.Request)
 
+// PostRequestOption is an option that processes the HTTP response after it has been received.
+type PostRequestOption func(client Client, r *http.Response) error
+
+// PostParseOption is an option that processes the result after it has been unmarshaled.
 type PostParseOption func(client Client, result any) error
 
 func QueryParam(key, value string) PreRequestOption {
@@ -225,5 +238,36 @@ func QueryParam(key, value string) PreRequestOption {
 func AtPath(path string) PreRequestOption {
 	return func(client Client, r *http.Request) {
 		r.URL = client.Path(path)
+	}
+}
+
+// Headers contains the response headers as received from the server.
+type Headers struct {
+	http.Header
+	ETag         string
+	ContentType  string
+	LastModified time.Time
+	Date         time.Time
+}
+
+// ResponseHeaders populates the given headers with the FHIR response headers as received from the server.
+func ResponseHeaders(headers *Headers) PostRequestOption {
+	return func(_ Client, r *http.Response) error {
+		var result Headers
+		result.Header = r.Header
+		if len(r.Header["ETag"]) > 0 {
+			result.ETag = r.Header["ETag"][0]
+		}
+		result.ContentType = r.Header.Get("Content-Type")
+		if len(r.Header["LastModified"]) > 0 {
+			lastModified, _ := time.Parse(http.TimeFormat, r.Header["LastModified"][0])
+			result.LastModified = lastModified
+		}
+		if date := r.Header.Get("Date"); date != "" {
+			dateTime, _ := time.Parse(http.TimeFormat, date)
+			result.Date = dateTime
+		}
+		*headers = result
+		return nil
 	}
 }

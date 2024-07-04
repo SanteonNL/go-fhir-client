@@ -157,6 +157,35 @@ func TestDefaultClient_doRequest(t *testing.T) {
 	})
 }
 
+func TestResponseHeaders(t *testing.T) {
+	t.Run("response headers are copied", func(t *testing.T) {
+		stub := &requestResponder{
+			response: &http.Response{
+				StatusCode: http.StatusOK,
+				Header: map[string][]string{
+					"Content-Type": {fhirclient.FhirJsonMediaType},
+					"X-Custom":     {"value"},
+					"Date":         {"Mon, 02 Jan 2006 15:04:05 GMT"},
+					"LastModified": {"Mon, 02 Jan 2020 15:04:05 GMT"},
+					"ETag":         {"123456789"},
+				},
+				Body: io.NopCloser(bytes.NewReader([]byte(`{}`))),
+			},
+		}
+		client := fhirclient.New(baseURL, stub, nil)
+		var result Resource
+
+		var actual fhirclient.Headers
+		err := client.Read("Resource/123", &result, fhirclient.ResponseHeaders(&actual))
+
+		require.NoError(t, err)
+		assert.Equal(t, "value", actual.Get("X-Custom"))
+		assert.Equal(t, "2006-01-02 15:04:05 +0000 UTC", actual.Date.String())
+		assert.Equal(t, "2020-01-02 15:04:05 +0000 UTC", actual.LastModified.String())
+		assert.Equal(t, "123456789", actual.ETag)
+	})
+}
+
 var _ json.Marshaler = &Resource{}
 
 type Resource struct {
