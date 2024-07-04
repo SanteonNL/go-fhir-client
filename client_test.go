@@ -153,7 +153,7 @@ func TestDefaultClient_doRequest(t *testing.T) {
 
 		err := client.Read("Resource/123", &result)
 
-		require.EqualError(t, err, "FHIR response exceeds max. safety limit of 2 bytes (url=http://example.com/fhir/Resource/123)")
+		require.EqualError(t, err, "FHIR response exceeds max. safety limit of 2 bytes (GET http://example.com/fhir/Resource/123, status=200)")
 	})
 }
 

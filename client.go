@@ -151,26 +151,26 @@ func (d BaseClient) doRequest(httpRequest *http.Request, target any, opts ...Opt
 
 	httpResponse, err := d.httpClient.Do(httpRequest)
 	if err != nil {
-		return fmt.Errorf("FHIR request failed (url=%s): %w", httpRequest.URL.String(), err)
+		return fmt.Errorf("FHIR request failed (%s %s): %w", httpRequest.Method, httpRequest.URL.String(), err)
 	}
 	defer httpResponse.Body.Close()
 	data, err := io.ReadAll(io.LimitReader(httpResponse.Body, int64(d.config.MaxResponseSize+1)))
 	if err != nil {
-		return fmt.Errorf("FHIR response read failed (url=%s): %w", httpRequest.URL.String(), err)
+		return fmt.Errorf("FHIR response read failed (%s %s): %w", httpRequest.Method, httpRequest.URL.String(), err)
 	}
 	if httpResponse.StatusCode < 200 || httpResponse.StatusCode >= 300 {
 		if d.config.Non2xxStatusHandler != nil {
 			d.config.Non2xxStatusHandler(httpResponse, data)
 		}
-		return fmt.Errorf("FHIR request failed (url=%s, status=%d)", httpRequest.URL.String(), httpResponse.StatusCode)
+		return fmt.Errorf("FHIR request failed (%s %s, status=%d)", httpRequest.Method, httpRequest.URL.String(), httpResponse.StatusCode)
 	}
 	if len(data) > d.config.MaxResponseSize {
-		return fmt.Errorf("FHIR response exceeds max. safety limit of %d bytes (url=%s)", d.config.MaxResponseSize, httpRequest.URL.String())
+		return fmt.Errorf("FHIR response exceeds max. safety limit of %d bytes (%s %s, status=%d)", d.config.MaxResponseSize, httpRequest.Method, httpRequest.URL.String(), httpResponse.StatusCode)
 	}
 	// TODO: Handle errornous responses (OperationOutcome?)
 	err = json.Unmarshal(data, target)
 	if err != nil {
-		return fmt.Errorf("FHIR response unmarshal failed (url=%s): %w", httpRequest.URL.String(), err)
+		return fmt.Errorf("FHIR response unmarshal failed (%s %s, status=%d): %w", httpRequest.Method, httpRequest.URL.String(), httpResponse.StatusCode, err)
 	}
 	for _, opt := range opts {
 		if fn, ok := opt.(PostParseOption); ok {
