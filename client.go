@@ -17,6 +17,7 @@ package fhirclient
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -28,16 +29,22 @@ import (
 const FhirJsonMediaType = "application/fhir+json"
 
 type Client interface {
-	// Read reads a resource at the given path from the FHIR server and unmarshals it into the target.
-	// Options can be used to, e.g., add query parameters to the request.
+	// Read is like ReadWithContext, but uses the default context.
 	Read(path string, target any, opts ...Option) error
+	// ReadWithContext reads a resource at the given path from the FHIR server and unmarshals it into the target.
+	// Options can be used to, e.g., add query parameters to the request.
+	ReadWithContext(ctx context.Context, path string, target any, opts ...Option) error
 	// Create creates a new resource on the FHIR server.
+	Create(resource any, result any, opts ...Option) error
+	// CreateWithContext creates a new resource on the FHIR server.
 	// The path is derived from the resource's resourceType.
 	// The response is unmarshaled into the result.
-	Create(resource any, result any, opts ...Option) error
-	// Update updates the resource at the given path on the FHIR server.
-	// The response is unmarshaled into the result.
+	CreateWithContext(ctx context.Context, resource any, result any, opts ...Option) error
+	// Update is like UpdateWithContext, but uses the default context.
 	Update(path string, resource any, result any, opts ...Option) error
+	// UpdateWithContext updates the resource at the given path on the FHIR server.
+	// The response is unmarshaled into the result.
+	UpdateWithContext(ctx context.Context, path string, resource any, result any, opts ...Option) error
 	// Path returns the full URL for the given path.
 	Path(path ...string) *url.URL
 }
@@ -95,9 +102,9 @@ func (d BaseClient) Path(path ...string) *url.URL {
 	return d.baseURL.JoinPath(path...)
 }
 
-func (d BaseClient) Read(path string, target any, opts ...Option) error {
+func (d BaseClient) ReadWithContext(ctx context.Context, path string, target any, opts ...Option) error {
 	opts = append([]Option{AtPath(path)}, opts...)
-	httpRequest, err := http.NewRequest(http.MethodGet, d.baseURL.String(), nil)
+	httpRequest, err := http.NewRequestWithContext(ctx, http.MethodGet, d.baseURL.String(), nil)
 	if err != nil {
 		return err
 	}
@@ -105,13 +112,17 @@ func (d BaseClient) Read(path string, target any, opts ...Option) error {
 	return d.doRequest(httpRequest, target, opts...)
 }
 
-func (d BaseClient) Create(resource any, result any, opts ...Option) error {
+func (d BaseClient) Read(path string, target any, opts ...Option) error {
+	return d.ReadWithContext(context.Background(), path, target, opts...)
+}
+
+func (d BaseClient) CreateWithContext(ctx context.Context, resource any, result any, opts ...Option) error {
 	desc, err := DescribeResource(resource)
 	if err != nil {
 		return err
 	}
 	opts = append([]Option{AtPath(desc.Type)}, opts...)
-	httpRequest, err := http.NewRequest(http.MethodPost, d.baseURL.String(), io.NopCloser(bytes.NewReader(desc.Data)))
+	httpRequest, err := http.NewRequestWithContext(ctx, http.MethodPost, d.baseURL.String(), io.NopCloser(bytes.NewReader(desc.Data)))
 	if err != nil {
 		return err
 	}
@@ -120,18 +131,26 @@ func (d BaseClient) Create(resource any, result any, opts ...Option) error {
 	return d.doRequest(httpRequest, result, opts...)
 }
 
-func (d BaseClient) Update(path string, resource any, result any, opts ...Option) error {
+func (d BaseClient) Create(resource any, result any, opts ...Option) error {
+	return d.CreateWithContext(context.Background(), resource, result, opts...)
+}
+
+func (d BaseClient) UpdateWithContext(ctx context.Context, path string, resource any, result any, opts ...Option) error {
 	data, err := json.Marshal(resource)
 	if err != nil {
 		return err
 	}
 	opts = append([]Option{AtPath(path)}, opts...)
-	httpRequest, err := http.NewRequest(http.MethodPut, d.baseURL.String(), io.NopCloser(bytes.NewReader(data)))
+	httpRequest, err := http.NewRequestWithContext(ctx, http.MethodPut, d.baseURL.String(), io.NopCloser(bytes.NewReader(data)))
 	if err != nil {
 		return err
 	}
 	httpRequest.Header.Add("Content-Type", FhirJsonMediaType)
 	return d.doRequest(httpRequest, result, opts...)
+}
+
+func (d BaseClient) Update(path string, resource any, result any, opts ...Option) error {
+	return d.UpdateWithContext(context.Background(), path, resource, result, opts...)
 }
 
 func (d BaseClient) doRequest(httpRequest *http.Request, target any, opts ...Option) error {

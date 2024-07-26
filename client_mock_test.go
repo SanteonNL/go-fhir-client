@@ -10,6 +10,7 @@
 package fhirclient_test
 
 import (
+	context "context"
 	http "net/http"
 	url "net/url"
 	reflect "reflect"
@@ -60,6 +61,25 @@ func (mr *MockClientMockRecorder) Create(resource, result any, opts ...any) *gom
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockClient)(nil).Create), varargs...)
 }
 
+// CreateWithContext mocks base method.
+func (m *MockClient) CreateWithContext(ctx context.Context, resource, result any, opts ...fhirclient.Option) error {
+	m.ctrl.T.Helper()
+	varargs := []any{ctx, resource, result}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "CreateWithContext", varargs...)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// CreateWithContext indicates an expected call of CreateWithContext.
+func (mr *MockClientMockRecorder) CreateWithContext(ctx, resource, result any, opts ...any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]any{ctx, resource, result}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateWithContext", reflect.TypeOf((*MockClient)(nil).CreateWithContext), varargs...)
+}
+
 // Path mocks base method.
 func (m *MockClient) Path(path ...string) *url.URL {
 	m.ctrl.T.Helper()
@@ -97,6 +117,25 @@ func (mr *MockClientMockRecorder) Read(path, target any, opts ...any) *gomock.Ca
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Read", reflect.TypeOf((*MockClient)(nil).Read), varargs...)
 }
 
+// ReadWithContext mocks base method.
+func (m *MockClient) ReadWithContext(ctx context.Context, path string, target any, opts ...fhirclient.Option) error {
+	m.ctrl.T.Helper()
+	varargs := []any{ctx, path, target}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "ReadWithContext", varargs...)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// ReadWithContext indicates an expected call of ReadWithContext.
+func (mr *MockClientMockRecorder) ReadWithContext(ctx, path, target any, opts ...any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]any{ctx, path, target}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadWithContext", reflect.TypeOf((*MockClient)(nil).ReadWithContext), varargs...)
+}
+
 // Update mocks base method.
 func (m *MockClient) Update(path string, resource, result any, opts ...fhirclient.Option) error {
 	m.ctrl.T.Helper()
@@ -114,6 +153,25 @@ func (mr *MockClientMockRecorder) Update(path, resource, result any, opts ...any
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]any{path, resource, result}, opts...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockClient)(nil).Update), varargs...)
+}
+
+// UpdateWithContext mocks base method.
+func (m *MockClient) UpdateWithContext(ctx context.Context, path string, resource, result any, opts ...fhirclient.Option) error {
+	m.ctrl.T.Helper()
+	varargs := []any{ctx, path, resource, result}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "UpdateWithContext", varargs...)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateWithContext indicates an expected call of UpdateWithContext.
+func (mr *MockClientMockRecorder) UpdateWithContext(ctx, path, resource, result any, opts ...any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]any{ctx, path, resource, result}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateWithContext", reflect.TypeOf((*MockClient)(nil).UpdateWithContext), varargs...)
 }
 
 // MockHttpRequestDoer is a mock of HttpRequestDoer interface.
