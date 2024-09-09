@@ -189,12 +189,19 @@ func (d BaseClient) doRequest(httpRequest *http.Request, target any, opts ...Opt
 		if d.config.Non2xxStatusHandler != nil {
 			d.config.Non2xxStatusHandler(httpResponse, data)
 		}
+		// Checking for OperationOutcome
+		if err = checkForOperationOutcome(data); err != nil {
+			return err
+		}
 		return fmt.Errorf("FHIR request failed (%s %s, status=%d)", httpRequest.Method, httpRequest.URL.String(), httpResponse.StatusCode)
 	}
 	if len(data) > d.config.MaxResponseSize {
 		return fmt.Errorf("FHIR response exceeds max. safety limit of %d bytes (%s %s, status=%d)", d.config.MaxResponseSize, httpRequest.Method, httpRequest.URL.String(), httpResponse.StatusCode)
 	}
-	// TODO: Handle errornous responses (OperationOutcome?)
+	// Checking for OperationOutcome
+	if err = checkForOperationOutcome(data); err != nil {
+		return err
+	}
 	err = json.Unmarshal(data, target)
 	if err != nil {
 		return fmt.Errorf("FHIR response unmarshal failed (%s %s, status=%d): %w", httpRequest.Method, httpRequest.URL.String(), httpResponse.StatusCode, err)
@@ -289,4 +296,19 @@ func ResponseHeaders(headers *Headers) PostRequestOption {
 		*headers = result
 		return nil
 	}
+}
+
+func checkForOperationOutcome(data []byte) error {
+	var ooc OperationOutcome
+
+	if err := json.Unmarshal(data, &ooc); err != nil {
+		// We're only checking for an OperationOutcome
+		return nil
+	}
+
+	if ooc.IsOperationOutcome() {
+		return ooc
+	}
+
+	return nil
 }
