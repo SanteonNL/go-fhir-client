@@ -189,7 +189,6 @@ func (d BaseClient) doRequest(httpRequest *http.Request, target any, opts ...Opt
 		if d.config.Non2xxStatusHandler != nil {
 			d.config.Non2xxStatusHandler(httpResponse, data)
 		}
-		// Checking for OperationOutcome
 		if err = checkForOperationOutcome(data); err != nil {
 			return err
 		}
@@ -198,7 +197,6 @@ func (d BaseClient) doRequest(httpRequest *http.Request, target any, opts ...Opt
 	if len(data) > d.config.MaxResponseSize {
 		return fmt.Errorf("FHIR response exceeds max. safety limit of %d bytes (%s %s, status=%d)", d.config.MaxResponseSize, httpRequest.Method, httpRequest.URL.String(), httpResponse.StatusCode)
 	}
-	// Checking for OperationOutcome
 	if err = checkForOperationOutcome(data); err != nil {
 		return err
 	}
