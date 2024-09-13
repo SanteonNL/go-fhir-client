@@ -189,12 +189,17 @@ func (d BaseClient) doRequest(httpRequest *http.Request, target any, opts ...Opt
 		if d.config.Non2xxStatusHandler != nil {
 			d.config.Non2xxStatusHandler(httpResponse, data)
 		}
+		if err = checkForOperationOutcomeError(data, true); err != nil {
+			return err
+		}
 		return fmt.Errorf("FHIR request failed (%s %s, status=%d)", httpRequest.Method, httpRequest.URL.String(), httpResponse.StatusCode)
 	}
 	if len(data) > d.config.MaxResponseSize {
 		return fmt.Errorf("FHIR response exceeds max. safety limit of %d bytes (%s %s, status=%d)", d.config.MaxResponseSize, httpRequest.Method, httpRequest.URL.String(), httpResponse.StatusCode)
 	}
-	// TODO: Handle errornous responses (OperationOutcome?)
+	if err = checkForOperationOutcomeError(data, false); err != nil {
+		return err
+	}
 	err = json.Unmarshal(data, target)
 	if err != nil {
 		return fmt.Errorf("FHIR response unmarshal failed (%s %s, status=%d): %w", httpRequest.Method, httpRequest.URL.String(), httpResponse.StatusCode, err)

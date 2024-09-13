@@ -19,13 +19,14 @@ package fhirclient_test
 import (
 	"bytes"
 	"encoding/json"
-	fhirclient "github.com/SanteonNL/go-fhir-client"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"io"
 	"net/http"
 	"net/url"
 	"testing"
+
+	fhirclient "github.com/SanteonNL/go-fhir-client"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestDefaultClient_Read(t *testing.T) {
@@ -136,6 +137,44 @@ func TestDefaultClient_doRequest(t *testing.T) {
 			err := client.Read("Resource/123", &result)
 
 			require.Error(t, err)
+		})
+	})
+	t.Run("200 status code & OperationOutcome", func(t *testing.T) {
+		stub := &requestResponder{
+			response: &http.Response{
+				StatusCode: http.StatusOK,
+				Header: map[string][]string{
+					"Content-Type": {fhirclient.FhirJsonMediaType},
+				},
+				Body: io.NopCloser(bytes.NewReader([]byte(`{"resourceType":"OperationOutcome","issue":[{"severity":"error","code":"processing","diagnostics":"some error message"}]}`))),
+			},
+		}
+		var result Resource
+		t.Run("without handler", func(t *testing.T) {
+			client := fhirclient.New(baseURL, stub, nil)
+
+			err := client.Read("Resource/123", &result)
+			assert.IsType(t, fhirclient.OperationOutcome{}, err)
+			assert.EqualError(t, err, "OperationOutcome, issues: [processing error] some error message")
+		})
+	})
+	t.Run("non-2xx status code & OperationOutcome", func(t *testing.T) {
+		stub := &requestResponder{
+			response: &http.Response{
+				StatusCode: http.StatusNotFound,
+				Header: map[string][]string{
+					"Content-Type": {fhirclient.FhirJsonMediaType},
+				},
+				Body: io.NopCloser(bytes.NewReader([]byte(`{"resourceType":"OperationOutcome","issue":[{"severity":"error","code":"processing","diagnostics":"some error message"}]}`))),
+			},
+		}
+		var result Resource
+		t.Run("without handler", func(t *testing.T) {
+			client := fhirclient.New(baseURL, stub, nil)
+
+			err := client.Read("Resource/123", &result)
+			assert.IsType(t, fhirclient.OperationOutcome{}, err)
+			assert.EqualError(t, err, "OperationOutcome, issues: [processing error] some error message")
 		})
 	})
 	t.Run("max. response size exceeded", func(t *testing.T) {
