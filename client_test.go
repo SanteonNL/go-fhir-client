@@ -177,6 +177,24 @@ func TestDefaultClient_doRequest(t *testing.T) {
 			assert.EqualError(t, err, "OperationOutcome, issues: [processing error] some error message")
 		})
 	})
+	t.Run("unmarshal as []byte]", func(t *testing.T) {
+		stub := &requestResponder{
+			response: &http.Response{
+				StatusCode: http.StatusOK,
+				Header: map[string][]string{
+					"Content-Type": {fhirclient.FhirJsonMediaType},
+				},
+				Body: io.NopCloser(bytes.NewReader([]byte(`{"key":"value"}`))),
+			},
+		}
+		client := fhirclient.New(baseURL, stub, nil)
+		var result []byte
+
+		err := client.Read("Resource/123", &result)
+
+		require.NoError(t, err)
+		assert.Equal(t, []byte(`{"key":"value"}`), result)
+	})
 	t.Run("max. response size exceeded", func(t *testing.T) {
 		stub := &requestResponder{
 			response: &http.Response{

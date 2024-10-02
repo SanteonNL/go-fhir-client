@@ -200,10 +200,16 @@ func (d BaseClient) doRequest(httpRequest *http.Request, target any, opts ...Opt
 	if err = checkForOperationOutcomeError(data, false); err != nil {
 		return err
 	}
-	err = json.Unmarshal(data, target)
-	if err != nil {
-		return fmt.Errorf("FHIR response unmarshal failed (%s %s, status=%d): %w", httpRequest.Method, httpRequest.URL.String(), httpResponse.StatusCode, err)
+	switch target.(type) {
+	case *[]byte:
+		*target.(*[]byte) = data
+	default:
+		err = json.Unmarshal(data, target)
+		if err != nil {
+			return fmt.Errorf("FHIR response unmarshal failed (%s %s, status=%d): %w", httpRequest.Method, httpRequest.URL.String(), httpResponse.StatusCode, err)
+		}
 	}
+
 	for _, opt := range opts {
 		if fn, ok := opt.(PostParseOption); ok {
 			if err := fn(d, target); err != nil {
