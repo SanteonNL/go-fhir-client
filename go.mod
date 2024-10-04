@@ -1,10 +1,12 @@
 module github.com/SanteonNL/go-fhir-client
 
-go 1.22.2
+go 1.23
+
+toolchain go1.23.2
 
 require (
-	github.com/samply/golang-fhir-models/fhir-models v0.3.2
 	github.com/stretchr/testify v1.9.0
+	github.com/zorgbijjou/golang-fhir-models/fhir-models v0.0.0-20241004115431-5fbe087ad50c
 	go.uber.org/mock v0.4.0
 )
 

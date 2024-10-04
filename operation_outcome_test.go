@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	fhirclient "github.com/SanteonNL/go-fhir-client"
-	"github.com/samply/golang-fhir-models/fhir-models/fhir"
 	"github.com/stretchr/testify/assert"
+	"github.com/zorgbijjou/golang-fhir-models/fhir-models/fhir"
 )
 
 func TestOperationOutcome_IsOperationOutcome(t *testing.T) {
