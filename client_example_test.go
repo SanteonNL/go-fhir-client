@@ -37,6 +37,23 @@ func ExampleBaseClient_Read() {
 	// Output: 123
 }
 
+func ExampleBaseClient_Read_absoluteUrl() {
+	// Stub the HTTP client
+	httpClient := &requestResponder{
+		response: okResponse(Resource{Id: "123"}),
+	}
+
+	// Create the FHIR client
+	client := fhirclient.New(baseURL, httpClient, nil)
+
+	// Read a Resource/123 (e.g. Patient)
+	var result Resource
+	_ = client.Read("http://example.com/fhir/Resource/123", &result)
+	fmt.Println(result.Id)
+
+	// Output: 123
+}
+
 func ExampleBaseClient_Create() {
 	// Stub the HTTP client
 	httpClient := &requestResponder{

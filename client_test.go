@@ -177,7 +177,7 @@ func TestDefaultClient_doRequest(t *testing.T) {
 			assert.EqualError(t, err, "OperationOutcome, issues: [processing error] some error message")
 		})
 	})
-	t.Run("unmarshal as []byte]", func(t *testing.T) {
+	t.Run("unmarshal as []byte", func(t *testing.T) {
 		stub := &requestResponder{
 			response: &http.Response{
 				StatusCode: http.StatusOK,
@@ -211,6 +211,19 @@ func TestDefaultClient_doRequest(t *testing.T) {
 		err := client.Read("Resource/123", &result)
 
 		require.EqualError(t, err, "FHIR response exceeds max. safety limit of 2 bytes (GET http://example.com/fhir/Resource/123, status=200)")
+	})
+	t.Run("caller passes an absolute URL", func(t *testing.T) {
+		stub := &requestResponder{
+			response: okResponse(Resource{Id: "123"}),
+		}
+		client := fhirclient.New(baseURL, stub, nil)
+		var result Resource
+
+		err := client.Read("http://example.com/fhir/Resource/123", &result)
+
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		assert.Equal(t, "http://example.com/fhir/Resource/123", stub.request.URL.String())
 	})
 }
 

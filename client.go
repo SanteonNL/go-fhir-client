@@ -103,7 +103,12 @@ func (d BaseClient) Path(path ...string) *url.URL {
 }
 
 func (d BaseClient) ReadWithContext(ctx context.Context, path string, target any, opts ...Option) error {
-	opts = append([]Option{AtPath(path)}, opts...)
+	absUrl, _ := url.Parse(path)
+	if absUrl.IsAbs() {
+		opts = append([]Option{AtUrl(absUrl)}, opts...)
+	} else {
+		opts = append([]Option{AtPath(path)}, opts...)
+	}
 	httpRequest, err := http.NewRequestWithContext(ctx, http.MethodGet, d.baseURL.String(), nil)
 	if err != nil {
 		return err
@@ -261,6 +266,13 @@ func QueryParam(key, value string) PreRequestOption {
 		q := r.URL.Query()
 		q.Add(key, value)
 		r.URL.RawQuery = q.Encode()
+	}
+}
+
+// AtUrl sets the URL of the request.
+func AtUrl(u *url.URL) PreRequestOption {
+	return func(_ Client, r *http.Request) {
+		r.URL = u
 	}
 }
 
