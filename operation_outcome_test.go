@@ -24,8 +24,8 @@ func TestOperationOutcome_IsOperationOutcome(t *testing.T) {
 		}
 		assert.False(t, ooc.IsOperationOutcome())
 	})
-	t.Run("ResourceType: OperationOutcomeError", func(t *testing.T) {
-		rt := "OperationOutcomeError"
+	t.Run("ResourceType: OperationOutcome", func(t *testing.T) {
+		rt := "OperationOutcome"
 		ooc := fhirclient.OperationOutcomeError{
 			OperationOutcome: fhir.OperationOutcome{},
 			ResourceType:     &rt,
@@ -35,7 +35,7 @@ func TestOperationOutcome_IsOperationOutcome(t *testing.T) {
 }
 
 func TestOperationOutcome_ContainsError(t *testing.T) {
-	rt := "OperationOutcomeError"
+	rt := "OperationOutcome"
 
 	t.Run("Diagnostics: No Issues", func(t *testing.T) {
 		ooc := fhirclient.OperationOutcomeError{
@@ -125,19 +125,19 @@ func TestOperationOutcome_ContainsError(t *testing.T) {
 			},
 			ResourceType: &rt,
 		}
-		assert.Equal(t, "OperationOutcomeError, issues: [processing error] some error message; [unknown warning] some warning message", ooc.Error())
+		assert.Equal(t, "OperationOutcome, issues: [processing error] some error message; [unknown warning] some warning message", ooc.Error())
 	})
 }
 
 func TestOperationOutcome_Error(t *testing.T) {
-	rt := "OperationOutcomeError"
+	rt := "OperationOutcome"
 
 	t.Run("Issue: nil", func(t *testing.T) {
 		ooc := fhirclient.OperationOutcomeError{
 			OperationOutcome: fhir.OperationOutcome{},
 			ResourceType:     &rt,
 		}
-		assert.Equal(t, "OperationOutcomeError, issues: ", ooc.Error())
+		assert.Equal(t, "OperationOutcome, issues: ", ooc.Error())
 	})
 
 	t.Run("Diagnostics: nil", func(t *testing.T) {
@@ -153,7 +153,7 @@ func TestOperationOutcome_Error(t *testing.T) {
 			},
 			ResourceType: &rt,
 		}
-		assert.Equal(t, "OperationOutcomeError, issues: [processing error]", ooc.Error())
+		assert.Equal(t, "OperationOutcome, issues: [processing error]", ooc.Error())
 	})
 
 	t.Run("Diagnostics: some error message", func(t *testing.T) {
@@ -171,7 +171,7 @@ func TestOperationOutcome_Error(t *testing.T) {
 			},
 			ResourceType: &rt,
 		}
-		assert.Equal(t, "OperationOutcomeError, issues: [processing error] some error message", ooc.Error())
+		assert.Equal(t, "OperationOutcome, issues: [processing error] some error message", ooc.Error())
 	})
 
 	t.Run("Multiple issues", func(t *testing.T) {
@@ -195,6 +195,6 @@ func TestOperationOutcome_Error(t *testing.T) {
 			},
 			ResourceType: &rt,
 		}
-		assert.Equal(t, "OperationOutcomeError, issues: [processing error] some error message; [unknown warning] some warning message", ooc.Error())
+		assert.Equal(t, "OperationOutcome, issues: [processing error] some error message; [unknown warning] some warning message", ooc.Error())
 	})
 }

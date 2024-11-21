@@ -15,7 +15,7 @@ func checkForOperationOutcomeError(data []byte, errorEvenWithoutIssue bool, http
 	var ooc OperationOutcomeError
 
 	if err := json.Unmarshal(data, &ooc); err != nil {
-		// We're only checking for an OperationOutcomeError, not for malformed JSON.
+		// We're only checking for an OperationOutcome, not for malformed JSON.
 		return nil
 	}
 
@@ -40,7 +40,7 @@ func (r OperationOutcomeError) IsOperationOutcome() bool {
 		return false
 	}
 
-	return strings.EqualFold(*r.ResourceType, "OperationOutcomeError")
+	return strings.EqualFold(*r.ResourceType, "OperationOutcome")
 }
 
 func (r OperationOutcomeError) ContainsError() bool {
@@ -62,5 +62,5 @@ func (r OperationOutcomeError) Error() string {
 			messages = append(messages, fmt.Sprintf("[%v %v] %s", issue.Code, issue.Severity, *issue.Diagnostics))
 		}
 	}
-	return fmt.Sprintf("OperationOutcomeError, issues: %s", strings.Join(messages, "; "))
+	return fmt.Sprintf("OperationOutcome, issues: %s", strings.Join(messages, "; "))
 }
