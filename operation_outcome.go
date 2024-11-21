@@ -11,16 +11,17 @@ import (
 // Check if the data contains an OperationalOutcome with an error in the issues.
 // If `errorEvenWithoutIssue` is set `true`, we don't check the issues and instead
 // always assume an OperationalOutcome is an error.
-func checkForOperationOutcomeError(data []byte, errorEvenWithoutIssue bool) error {
-	var ooc OperationOutcome
+func checkForOperationOutcomeError(data []byte, errorEvenWithoutIssue bool, httpStatusCode int) error {
+	var ooc OperationOutcomeError
 
 	if err := json.Unmarshal(data, &ooc); err != nil {
-		// We're only checking for an OperationOutcome, not for malformed JSON.
+		// We're only checking for an OperationOutcomeError, not for malformed JSON.
 		return nil
 	}
 
 	if ooc.IsOperationOutcome() {
 		if errorEvenWithoutIssue || ooc.ContainsError() {
+			ooc.HttpStatusCode = httpStatusCode
 			return ooc
 		}
 	}
@@ -28,20 +29,21 @@ func checkForOperationOutcomeError(data []byte, errorEvenWithoutIssue bool) erro
 	return nil
 }
 
-type OperationOutcome struct {
+type OperationOutcomeError struct {
 	fhir.OperationOutcome
-	ResourceType *string `bson:"resourceType" json:"resourceType"`
+	ResourceType   *string `bson:"resourceType" json:"resourceType"`
+	HttpStatusCode int
 }
 
-func (r OperationOutcome) IsOperationOutcome() bool {
+func (r OperationOutcomeError) IsOperationOutcome() bool {
 	if r.ResourceType == nil {
 		return false
 	}
 
-	return strings.EqualFold(*r.ResourceType, "OperationOutcome")
+	return strings.EqualFold(*r.ResourceType, "OperationOutcomeError")
 }
 
-func (r OperationOutcome) ContainsError() bool {
+func (r OperationOutcomeError) ContainsError() bool {
 	for _, issue := range r.Issue {
 		if issue.Severity == fhir.IssueSeverityFatal || issue.Severity == fhir.IssueSeverityError {
 			return true
@@ -51,7 +53,7 @@ func (r OperationOutcome) ContainsError() bool {
 	return false
 }
 
-func (r OperationOutcome) Error() string {
+func (r OperationOutcomeError) Error() string {
 	var messages []string
 	for _, issue := range r.Issue {
 		if issue.Diagnostics == nil {
@@ -60,5 +62,5 @@ func (r OperationOutcome) Error() string {
 			messages = append(messages, fmt.Sprintf("[%v %v] %s", issue.Code, issue.Severity, *issue.Diagnostics))
 		}
 	}
-	return fmt.Sprintf("OperationOutcome, issues: %s", strings.Join(messages, "; "))
+	return fmt.Sprintf("OperationOutcomeError, issues: %s", strings.Join(messages, "; "))
 }

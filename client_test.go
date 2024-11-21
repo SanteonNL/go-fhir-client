@@ -139,14 +139,14 @@ func TestDefaultClient_doRequest(t *testing.T) {
 			require.Error(t, err)
 		})
 	})
-	t.Run("200 status code & OperationOutcome", func(t *testing.T) {
+	t.Run("200 status code & OperationOutcomeError", func(t *testing.T) {
 		stub := &requestResponder{
 			response: &http.Response{
 				StatusCode: http.StatusOK,
 				Header: map[string][]string{
 					"Content-Type": {fhirclient.FhirJsonMediaType},
 				},
-				Body: io.NopCloser(bytes.NewReader([]byte(`{"resourceType":"OperationOutcome","issue":[{"severity":"error","code":"processing","diagnostics":"some error message"}]}`))),
+				Body: io.NopCloser(bytes.NewReader([]byte(`{"resourceType":"OperationOutcomeError","issue":[{"severity":"error","code":"processing","diagnostics":"some error message"}]}`))),
 			},
 		}
 		var result Resource
@@ -154,18 +154,19 @@ func TestDefaultClient_doRequest(t *testing.T) {
 			client := fhirclient.New(baseURL, stub, nil)
 
 			err := client.Read("Resource/123", &result)
-			assert.IsType(t, fhirclient.OperationOutcome{}, err)
-			assert.EqualError(t, err, "OperationOutcome, issues: [processing error] some error message")
+			assert.IsType(t, fhirclient.OperationOutcomeError{}, err)
+			assert.Equal(t, http.StatusOK, err.(fhirclient.OperationOutcomeError).HttpStatusCode)
+			assert.EqualError(t, err, "OperationOutcomeError, issues: [processing error] some error message")
 		})
 	})
-	t.Run("non-2xx status code & OperationOutcome", func(t *testing.T) {
+	t.Run("non-2xx status code & OperationOutcomeError", func(t *testing.T) {
 		stub := &requestResponder{
 			response: &http.Response{
 				StatusCode: http.StatusNotFound,
 				Header: map[string][]string{
 					"Content-Type": {fhirclient.FhirJsonMediaType},
 				},
-				Body: io.NopCloser(bytes.NewReader([]byte(`{"resourceType":"OperationOutcome","issue":[{"severity":"error","code":"processing","diagnostics":"some error message"}]}`))),
+				Body: io.NopCloser(bytes.NewReader([]byte(`{"resourceType":"OperationOutcomeError","issue":[{"severity":"error","code":"processing","diagnostics":"some error message"}]}`))),
 			},
 		}
 		var result Resource
@@ -173,8 +174,9 @@ func TestDefaultClient_doRequest(t *testing.T) {
 			client := fhirclient.New(baseURL, stub, nil)
 
 			err := client.Read("Resource/123", &result)
-			assert.IsType(t, fhirclient.OperationOutcome{}, err)
-			assert.EqualError(t, err, "OperationOutcome, issues: [processing error] some error message")
+			assert.IsType(t, fhirclient.OperationOutcomeError{}, err)
+			assert.Equal(t, http.StatusNotFound, err.(fhirclient.OperationOutcomeError).HttpStatusCode)
+			assert.EqualError(t, err, "OperationOutcomeError, issues: [processing error] some error message")
 		})
 	})
 	t.Run("unmarshal as []byte", func(t *testing.T) {
