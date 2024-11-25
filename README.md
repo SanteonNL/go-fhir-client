@@ -14,3 +14,4 @@ Not supported/TODO:
 
 - Resolving references using logical identifiers
 - Resolving references using contained resources
+- XML support (only JSON is currently supported)

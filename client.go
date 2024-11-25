@@ -227,9 +227,15 @@ func (d BaseClient) doRequest(httpRequest *http.Request, target any, opts ...Opt
 
 // DescribeResource is used to extract often-used information from a resource.
 func DescribeResource(resource any) (*ResourceDescription, error) {
-	data, err := json.Marshal(resource)
-	if err != nil {
-		return nil, fmt.Errorf("invalid resource of type %T: %w", resource, err)
+	var data []byte
+	if resourceByteSlice, ok := resource.([]byte); ok {
+		data = resourceByteSlice
+	} else {
+		var err error
+		data, err = json.Marshal(resource)
+		if err != nil {
+			return nil, fmt.Errorf("invalid resource of type %T: %w", resource, err)
+		}
 	}
 	var desc ResourceDescription
 	if err := json.Unmarshal(data, &desc); err != nil {

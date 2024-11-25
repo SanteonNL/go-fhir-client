@@ -19,6 +19,7 @@ package fhirclient_test
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/url"
@@ -303,3 +304,55 @@ func (s *requestsResponder) Do(req *http.Request) (*http.Response, error) {
 }
 
 var baseURL, _ = url.Parse("http://example.com/fhir")
+
+func TestDescribeResource(t *testing.T) {
+	type args struct {
+		resource any
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    *fhirclient.ResourceDescription
+		wantErr error
+	}{
+		{
+			name: "Task as map[string]interface{}",
+			args: args{resource: map[string]interface{}{"resourceType": "Task"}},
+			want: &fhirclient.ResourceDescription{
+				Type: "Task",
+				Data: []byte(`{"resourceType":"Task"}`),
+			},
+		},
+		{
+			name: "Task as []byte",
+			args: args{resource: []byte(`{"resourceType":"Task"}`)},
+			want: &fhirclient.ResourceDescription{
+				Type: "Task",
+				Data: []byte(`{"resourceType":"Task"}`),
+			},
+		},
+		{
+			name:    "Resource does not contain resourceType field",
+			args:    args{resource: map[string]interface{}{"key": "value"}},
+			want:    nil,
+			wantErr: errors.New("resourceType not present in resource of type map[string]interface {}"),
+		},
+		{
+			name:    "[]byte is not valid JSON",
+			args:    args{resource: []byte(`Hello`)},
+			want:    nil,
+			wantErr: errors.New("invalid resource of type []uint8: invalid character 'H' looking for beginning of value"),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := fhirclient.DescribeResource(tt.args.resource)
+			if tt.wantErr != nil {
+				assert.EqualError(t, err, tt.wantErr.Error())
+			} else {
+				require.NoError(t, err)
+				assert.Equalf(t, tt.want, got, "DescribeResource(%v)", tt.args.resource)
+			}
+		})
+	}
+}
