@@ -275,6 +275,16 @@ func QueryParam(key, value string) PreRequestOption {
 	}
 }
 
+// RequestHeaders sets the given HTTP headers on the request.
+func RequestHeaders(headers http.Header) PreRequestOption {
+	return func(_ Client, r *http.Request) {
+		for k, v := range headers {
+			// Make sure to copy the headers
+			r.Header[k] = append(r.Header[k], v...)
+		}
+	}
+}
+
 // AtUrl sets the URL of the request.
 func AtUrl(u *url.URL) PreRequestOption {
 	return func(_ Client, r *http.Request) {
@@ -316,6 +326,14 @@ func ResponseHeaders(headers *Headers) PostRequestOption {
 			result.Date = dateTime
 		}
 		*headers = result
+		return nil
+	}
+}
+
+// ResponseStatusCode captures the HTTP response status code.
+func ResponseStatusCode(statusCode *int) PostRequestOption {
+	return func(_ Client, r *http.Response) error {
+		*statusCode = r.StatusCode
 		return nil
 	}
 }

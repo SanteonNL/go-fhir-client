@@ -356,3 +356,27 @@ func TestDescribeResource(t *testing.T) {
 		})
 	}
 }
+
+func TestResponseStatusCode(t *testing.T) {
+	var actual int
+	err := fhirclient.ResponseStatusCode(&actual)(nil, &http.Response{StatusCode: 404})
+	assert.Equal(t, 404, actual)
+	assert.NoError(t, err)
+}
+
+func TestRequestHeaders(t *testing.T) {
+	t.Run("request headers are copied", func(t *testing.T) {
+		stub := &requestsResponder{
+			responses: []*http.Response{okResponse(Resource{Id: "123"})},
+		}
+		client := fhirclient.New(baseURL, stub, nil)
+		var result Resource
+
+		err := client.Read("Resource/123", &result, fhirclient.RequestHeaders(http.Header{
+			"X-Custom": []string{"value"},
+		}))
+
+		require.NoError(t, err)
+		assert.Equal(t, "value", stub.requests[0].Header.Get("X-Custom"))
+	})
+}
