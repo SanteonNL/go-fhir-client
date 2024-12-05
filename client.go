@@ -23,6 +23,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 )
 
@@ -34,6 +35,10 @@ type Client interface {
 	// ReadWithContext reads a resource at the given path from the FHIR server and unmarshals it into the target.
 	// Options can be used to, e.g., add query parameters to the request.
 	ReadWithContext(ctx context.Context, path string, target any, opts ...Option) error
+	// Search is like SearchWithContext, but uses the default context.
+	Search(resourceType string, query url.Values, target any, opts ...Option) error
+	// SearchWithContext searches for resources by POST on the FHIR server and unmarshals the result into the target.
+	SearchWithContext(ctx context.Context, resourceType string, query url.Values, target any, opts ...Option) error
 	// Create creates a new resource on the FHIR server.
 	Create(resource any, result any, opts ...Option) error
 	// CreateWithContext creates a new resource on the FHIR server.
@@ -119,6 +124,20 @@ func (d BaseClient) ReadWithContext(ctx context.Context, path string, target any
 
 func (d BaseClient) Read(path string, target any, opts ...Option) error {
 	return d.ReadWithContext(context.Background(), path, target, opts...)
+}
+
+func (d BaseClient) SearchWithContext(ctx context.Context, resourceType string, query url.Values, target any, opts ...Option) error {
+	opts = append([]Option{AtPath(resourceType + "/_search")}, opts...)
+	httpRequest, err := http.NewRequestWithContext(ctx, http.MethodPost, d.baseURL.String(), strings.NewReader(query.Encode()))
+	if err != nil {
+		return err
+	}
+	httpRequest.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	return d.doRequest(httpRequest, target, opts...)
+}
+
+func (d BaseClient) Search(resourceType string, query url.Values, target any, opts ...Option) error {
+	return d.SearchWithContext(context.Background(), resourceType, query, target, opts...)
 }
 
 func (d BaseClient) CreateWithContext(ctx context.Context, resource any, result any, opts ...Option) error {
