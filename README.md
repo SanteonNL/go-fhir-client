@@ -6,6 +6,7 @@ For example usage, see ``client_example_test.go``.
 ## Features
 
 - Reading FHIR resources
+- Searching FHIR resources
 - Creating FHIR resources
 - Updating FHIR resources
 - Resolving references
