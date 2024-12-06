@@ -108,88 +108,108 @@ func TestBaseClient_Create(t *testing.T) {
 	})
 }
 
-func TestBaseClient_SearchWithContext_ValidQuery_ReturnsExpectedResult(t *testing.T) {
-	stub := &requestResponder{
-		response: okResponse(Resource{Id: "123"}),
-	}
-	client := fhirclient.New(baseURL, stub, nil)
-	var result Resource
+func TestBaseClient_SearchWithContext(t *testing.T) {
+	t.Run("valid query", func(t *testing.T) {
+		stub := &requestResponder{
+			response: okResponse(Resource{Id: "123"}),
+		}
+		client := fhirclient.New(baseURL, stub, nil)
+		var result Resource
 
-	err := client.SearchWithContext(context.Background(), "Resource", url.Values{"key": {"value"}}, &result)
+		err := client.SearchWithContext(context.Background(), "Resource", url.Values{"key": {"value"}}, &result)
 
-	require.NoError(t, err)
-	require.NotNil(t, result)
-	assert.Equal(t, "http://example.com/fhir/Resource/_search", stub.request.URL.String())
-	assert.Equal(t, "application/x-www-form-urlencoded", stub.request.Header.Get("Content-Type"))
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		assert.Equal(t, "http://example.com/fhir/Resource/_search", stub.request.URL.String())
+		assert.Equal(t, "application/x-www-form-urlencoded", stub.request.Header.Get("Content-Type"))
 
-	requestBody := new(bytes.Buffer)
-	_, _ = io.Copy(requestBody, stub.request.Body)
-	assert.Equal(t, "key=value", requestBody.String())
+		requestBody := new(bytes.Buffer)
+		_, _ = io.Copy(requestBody, stub.request.Body)
+		assert.Equal(t, "key=value", requestBody.String())
+	})
+	t.Run("invalid query", func(t *testing.T) {
+		stub := &requestResponder{
+			response: &http.Response{
+				StatusCode: http.StatusBadRequest,
+				Header:     map[string][]string{"Content-Type": {fhirclient.FhirJsonMediaType}},
+				Body:       io.NopCloser(bytes.NewReader([]byte(`{"resourceType":"OperationOutcome","issue":[{"severity":"error","code":"processing","diagnostics":"invalid query"}]}`))),
+			},
+		}
+		client := fhirclient.New(baseURL, stub, nil)
+		var result Resource
+
+		err := client.SearchWithContext(context.Background(), "Resource", url.Values{"invalid": {"query"}}, &result)
+
+		require.Error(t, err)
+		assert.IsType(t, fhirclient.OperationOutcomeError{}, err)
+		assert.Equal(t, http.StatusBadRequest, err.(fhirclient.OperationOutcomeError).HttpStatusCode)
+		assert.EqualError(t, err, "OperationOutcome, issues: [processing error] invalid query")
+
+		requestBody := new(bytes.Buffer)
+		_, _ = io.Copy(requestBody, stub.request.Body)
+		assert.Equal(t, "invalid=query", requestBody.String())
+	})
 }
 
-func TestBaseClient_SearchWithContext_InvalidQuery_ReturnsError(t *testing.T) {
-	stub := &requestResponder{
-		response: &http.Response{
-			StatusCode: http.StatusBadRequest,
-			Header:     map[string][]string{"Content-Type": {fhirclient.FhirJsonMediaType}},
-			Body:       io.NopCloser(bytes.NewReader([]byte(`{"resourceType":"OperationOutcome","issue":[{"severity":"error","code":"processing","diagnostics":"invalid query"}]}`))),
-		},
-	}
-	client := fhirclient.New(baseURL, stub, nil)
-	var result Resource
+func TestBaseClient_Search(t *testing.T) {
+	t.Run("valid query", func(t *testing.T) {
+		stub := &requestResponder{
+			response: okResponse(Resource{Id: "123"}),
+		}
+		client := fhirclient.New(baseURL, stub, nil)
+		var result Resource
 
-	err := client.SearchWithContext(context.Background(), "Resource", url.Values{"invalid": {"query"}}, &result)
+		err := client.Search("Resource", url.Values{"key": {"value"}}, &result)
 
-	require.Error(t, err)
-	assert.IsType(t, fhirclient.OperationOutcomeError{}, err)
-	assert.Equal(t, http.StatusBadRequest, err.(fhirclient.OperationOutcomeError).HttpStatusCode)
-	assert.EqualError(t, err, "OperationOutcome, issues: [processing error] invalid query")
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		assert.Equal(t, "http://example.com/fhir/Resource/_search", stub.request.URL.String())
+		assert.Equal(t, "application/x-www-form-urlencoded", stub.request.Header.Get("Content-Type"))
 
-	requestBody := new(bytes.Buffer)
-	_, _ = io.Copy(requestBody, stub.request.Body)
-	assert.Equal(t, "invalid=query", requestBody.String())
-}
+		requestBody := new(bytes.Buffer)
+		_, _ = io.Copy(requestBody, stub.request.Body)
+		assert.Equal(t, "key=value", requestBody.String())
+	})
+	t.Run("invalid query", func(t *testing.T) {
+		stub := &requestResponder{
+			response: &http.Response{
+				StatusCode: http.StatusBadRequest,
+				Header:     map[string][]string{"Content-Type": {fhirclient.FhirJsonMediaType}},
+				Body:       io.NopCloser(bytes.NewReader([]byte(`{"resourceType":"OperationOutcome","issue":[{"severity":"error","code":"processing","diagnostics":"invalid query"}]}`))),
+			},
+		}
+		client := fhirclient.New(baseURL, stub, nil)
+		var result Resource
 
-func TestBaseClient_Search_ValidQuery_ReturnsExpectedResult(t *testing.T) {
-	stub := &requestResponder{
-		response: okResponse(Resource{Id: "123"}),
-	}
-	client := fhirclient.New(baseURL, stub, nil)
-	var result Resource
+		err := client.Search("Resource", url.Values{"invalid": {"query"}}, &result)
 
-	err := client.Search("Resource", url.Values{"key": {"value"}}, &result)
+		require.Error(t, err)
+		assert.IsType(t, fhirclient.OperationOutcomeError{}, err)
+		assert.Equal(t, http.StatusBadRequest, err.(fhirclient.OperationOutcomeError).HttpStatusCode)
+		assert.EqualError(t, err, "OperationOutcome, issues: [processing error] invalid query")
 
-	require.NoError(t, err)
-	require.NotNil(t, result)
-	assert.Equal(t, "http://example.com/fhir/Resource/_search", stub.request.URL.String())
-	assert.Equal(t, "application/x-www-form-urlencoded", stub.request.Header.Get("Content-Type"))
+		requestBody := new(bytes.Buffer)
+		_, _ = io.Copy(requestBody, stub.request.Body)
+		assert.Equal(t, "invalid=query", requestBody.String())
+	})
+	t.Run("encoded query params", func(t *testing.T) {
+		stub := &requestResponder{
+			response: okResponse(Resource{Id: "123"}),
+		}
+		client := fhirclient.New(baseURL, stub, nil)
+		var result Resource
 
-	requestBody := new(bytes.Buffer)
-	_, _ = io.Copy(requestBody, stub.request.Body)
-	assert.Equal(t, "key=value", requestBody.String())
-}
+		err := client.Search("Resource", url.Values{"key": {"value with spaces & special=characters!"}}, &result)
 
-func TestBaseClient_Search_InvalidQuery_ReturnsError(t *testing.T) {
-	stub := &requestResponder{
-		response: &http.Response{
-			StatusCode: http.StatusBadRequest,
-			Header:     map[string][]string{"Content-Type": {fhirclient.FhirJsonMediaType}},
-			Body:       io.NopCloser(bytes.NewReader([]byte(`{"resourceType":"OperationOutcome","issue":[{"severity":"error","code":"processing","diagnostics":"invalid query"}]}`))),
-		},
-	}
-	client := fhirclient.New(baseURL, stub, nil)
-	var result Resource
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		assert.Equal(t, "http://example.com/fhir/Resource/_search", stub.request.URL.String())
+		assert.Equal(t, "application/x-www-form-urlencoded", stub.request.Header.Get("Content-Type"))
 
-	err := client.Search("Resource", url.Values{"invalid": {"query"}}, &result)
-
-	require.Error(t, err)
-	assert.IsType(t, fhirclient.OperationOutcomeError{}, err)
-	assert.Equal(t, http.StatusBadRequest, err.(fhirclient.OperationOutcomeError).HttpStatusCode)
-	assert.EqualError(t, err, "OperationOutcome, issues: [processing error] invalid query")
-
-	requestBody := new(bytes.Buffer)
-	_, _ = io.Copy(requestBody, stub.request.Body)
-	assert.Equal(t, "invalid=query", requestBody.String())
+		requestBody := new(bytes.Buffer)
+		_, _ = io.Copy(requestBody, stub.request.Body)
+		assert.Equal(t, "key=value+with+spaces+%26+special%3Dcharacters%21", requestBody.String())
+	})
 }
 
 func TestDefaultClient_doRequest(t *testing.T) {
