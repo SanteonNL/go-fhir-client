@@ -132,7 +132,7 @@ func (d BaseClient) SearchWithContext(ctx context.Context, resourceType string, 
 	if err != nil {
 		return err
 	}
-	httpRequest.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	httpRequest.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	return d.doRequest(httpRequest, target, opts...)
 }
 
