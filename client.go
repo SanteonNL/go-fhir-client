@@ -298,8 +298,20 @@ func QueryParam(key, value string) PreRequestOption {
 func RequestHeaders(headers http.Header) PreRequestOption {
 	return func(_ Client, r *http.Request) {
 		for k, v := range headers {
-			// Make sure to copy the headers
-			r.Header[k] = append(r.Header[k], v...)
+			// Make sure to copy the headers, but don't duplicate existing values
+			existing := r.Header[k]
+			for _, newValue := range v {
+				alreadyPresent := false
+				for _, existingValue := range existing {
+					if existingValue == newValue {
+						alreadyPresent = true
+						break
+					}
+				}
+				if !alreadyPresent {
+					r.Header.Add(k, newValue)
+				}
+			}
 		}
 	}
 }

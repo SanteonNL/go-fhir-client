@@ -484,4 +484,41 @@ func TestRequestHeaders(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "value", stub.requests[0].Header.Get("X-Custom"))
 	})
+	t.Run("request headers are not duplicated", func(t *testing.T) {
+		stub := &requestsResponder{
+			responses: []*http.Response{okResponse(Resource{Id: "123"})},
+		}
+		client := fhirclient.New(baseURL, stub, nil)
+		var result Resource
+
+		err := client.Read("Resource/123", &result, fhirclient.RequestHeaders(http.Header{
+			"X-Custom": []string{"value"},
+		}), fhirclient.RequestHeaders(http.Header{
+			"X-Custom": []string{"value"},
+		}))
+
+		require.NoError(t, err)
+		assert.Equal(t, "value", stub.requests[0].Header.Get("X-Custom"))
+	})
+	t.Run("request headers are not overwritten", func(t *testing.T) {
+		stub := &requestsResponder{
+			responses: []*http.Response{okResponse(Resource{Id: "123"})},
+		}
+		client := fhirclient.New(baseURL, stub, nil)
+		var result Resource
+
+		err := client.Read("Resource/123", &result, fhirclient.RequestHeaders(http.Header{
+			"X-Custom": []string{"value"},
+		}), fhirclient.RequestHeaders(http.Header{
+			"Accept": []string{"application/xml"},
+		}), fhirclient.RequestHeaders(http.Header{
+			"Accept": []string{"application/xml"},
+		}), fhirclient.RequestHeaders(http.Header{
+			"X-Custom": []string{"foo", "bar"},
+		}))
+
+		require.NoError(t, err)
+		assert.Equal(t, []string{"value", "foo", "bar"}, stub.requests[0].Header["X-Custom"])
+		assert.Equal(t, []string{"application/fhir+json", "application/xml"}, stub.requests[0].Header["Accept"])
+	})
 }
