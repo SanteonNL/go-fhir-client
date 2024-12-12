@@ -23,6 +23,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 )
@@ -294,12 +295,16 @@ func QueryParam(key, value string) PreRequestOption {
 	}
 }
 
-// RequestHeaders sets the given HTTP headers on the request.
+// RequestHeaders sets the given HTTP headers on the request. Values are only added if they are not already present, this prevents duplicates
 func RequestHeaders(headers http.Header) PreRequestOption {
 	return func(_ Client, r *http.Request) {
 		for k, v := range headers {
-			// Make sure to copy the headers
-			r.Header[k] = append(r.Header[k], v...)
+			existing := r.Header[k]
+			for _, newValue := range v {
+				if !slices.Contains(existing, newValue) {
+					r.Header.Add(k, newValue)
+				}
+			}
 		}
 	}
 }
