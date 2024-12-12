@@ -119,7 +119,7 @@ func (d BaseClient) ReadWithContext(ctx context.Context, path string, target any
 	if err != nil {
 		return err
 	}
-	httpRequest.Header.Add("Cache-Control", "no-cache")
+	setHeaderValueIfNotPresent(&httpRequest.Header, "Cache-Control", "no-cache")
 	return d.doRequest(httpRequest, target, opts...)
 }
 
@@ -152,7 +152,7 @@ func (d BaseClient) CreateWithContext(ctx context.Context, resource any, result 
 		return err
 	}
 
-	httpRequest.Header.Add("Content-Type", FhirJsonMediaType)
+	httpRequest.Header.Set("Content-Type", FhirJsonMediaType)
 	return d.doRequest(httpRequest, result, opts...)
 }
 
@@ -170,7 +170,7 @@ func (d BaseClient) UpdateWithContext(ctx context.Context, path string, resource
 	if err != nil {
 		return err
 	}
-	httpRequest.Header.Add("Content-Type", FhirJsonMediaType)
+	httpRequest.Header.Set("Content-Type", FhirJsonMediaType)
 	return d.doRequest(httpRequest, result, opts...)
 }
 
@@ -179,7 +179,7 @@ func (d BaseClient) Update(path string, resource any, result any, opts ...Option
 }
 
 func (d BaseClient) doRequest(httpRequest *http.Request, target any, opts ...Option) error {
-	httpRequest.Header.Add("Accept", FhirJsonMediaType)
+	addHeaderValueIfNotPresent(&httpRequest.Header, "Accept", FhirJsonMediaType)
 	// Execute pre-request options
 	for _, opt := range opts {
 		if fn, ok := opt.(PreRequestOption); ok {
@@ -299,11 +299,8 @@ func QueryParam(key, value string) PreRequestOption {
 func RequestHeaders(headers http.Header) PreRequestOption {
 	return func(_ Client, r *http.Request) {
 		for k, v := range headers {
-			existing := r.Header[k]
 			for _, newValue := range v {
-				if !slices.Contains(existing, newValue) {
-					r.Header.Add(k, newValue)
-				}
+				addHeaderValueIfNotPresent(&r.Header, k, newValue)
 			}
 		}
 	}
@@ -359,5 +356,20 @@ func ResponseStatusCode(statusCode *int) PostRequestOption {
 	return func(_ Client, r *http.Response) error {
 		*statusCode = r.StatusCode
 		return nil
+	}
+}
+
+// addHeaderValueIfNotPresent adds the given value to the header if it is not already present. This prevents duplicates.
+func addHeaderValueIfNotPresent(header *http.Header, key, value string) {
+	existing := (*header)[key]
+	if !slices.Contains(existing, value) {
+		header.Add(key, value)
+	}
+}
+
+// setHeaderValueIfNotPresent sets the given value in the header
+func setHeaderValueIfNotPresent(header *http.Header, key, value string) {
+	if _, ok := (*header)[key]; !ok {
+		header.Set(key, value)
 	}
 }
