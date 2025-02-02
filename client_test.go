@@ -108,6 +108,31 @@ func TestBaseClient_Create(t *testing.T) {
 	})
 }
 
+func TestBaseClient_DeleteWithContext(t *testing.T) {
+	t.Run("by ID", func(t *testing.T) {
+		stub := &requestResponder{
+			response: &http.Response{StatusCode: http.StatusNoContent},
+		}
+		client := fhirclient.New(baseURL, stub, nil)
+
+		err := client.DeleteWithContext(context.Background(), "Resource/123")
+
+		require.NoError(t, err)
+		assert.Equal(t, "http://example.com/fhir/Resource/123", stub.request.URL.String())
+	})
+	t.Run("at path", func(t *testing.T) {
+		stub := &requestResponder{
+			response: &http.Response{StatusCode: http.StatusNoContent},
+		}
+		client := fhirclient.New(baseURL, stub, nil)
+
+		err := client.DeleteWithContext(context.Background(), "Resource", fhirclient.AtPath("123"))
+
+		require.NoError(t, err)
+		assert.Equal(t, "http://example.com/fhir/123", stub.request.URL.String())
+	})
+}
+
 func TestBaseClient_SearchWithContext(t *testing.T) {
 	t.Run("valid query", func(t *testing.T) {
 		stub := &requestResponder{

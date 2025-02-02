@@ -12,6 +12,9 @@ import (
 // If `errorEvenWithoutIssue` is set `true`, we don't check the issues and instead
 // always assume an OperationalOutcome is an error.
 func checkForOperationOutcomeError(data []byte, errorEvenWithoutIssue bool, httpStatusCode int) error {
+	if len(data) == 0 {
+		return nil
+	}
 	var ooc OperationOutcomeError
 
 	if err := json.Unmarshal(data, &ooc); err != nil {

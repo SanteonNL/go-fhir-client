@@ -51,6 +51,10 @@ type Client interface {
 	// UpdateWithContext updates the resource at the given path on the FHIR server.
 	// The response is unmarshaled into the result.
 	UpdateWithContext(ctx context.Context, path string, resource any, result any, opts ...Option) error
+	// Delete deletes the resource at the given path on the FHIR server.
+	Delete(path string, opts ...Option) error
+	// DeleteWithContext deletes the resource at the given path on the FHIR server.
+	DeleteWithContext(ctx context.Context, path string, opts ...Option) error
 	// Path returns the full URL for the given path.
 	Path(path ...string) *url.URL
 }
@@ -178,6 +182,19 @@ func (d BaseClient) Update(path string, resource any, result any, opts ...Option
 	return d.UpdateWithContext(context.Background(), path, resource, result, opts...)
 }
 
+func (d BaseClient) Delete(path string, opts ...Option) error {
+	return d.DeleteWithContext(context.Background(), path, opts...)
+}
+
+func (d BaseClient) DeleteWithContext(ctx context.Context, path string, opts ...Option) error {
+	opts = append([]Option{AtPath(path)}, opts...)
+	httpRequest, err := http.NewRequestWithContext(ctx, http.MethodDelete, d.baseURL.String(), nil)
+	if err != nil {
+		return err
+	}
+	return d.doRequest(httpRequest, nil, opts...)
+}
+
 func (d BaseClient) doRequest(httpRequest *http.Request, target any, opts ...Option) error {
 	addHeaderValueIfNotPresent(&httpRequest.Header, "Accept", FhirJsonMediaType)
 	// Execute pre-request options
@@ -205,10 +222,13 @@ func (d BaseClient) doRequest(httpRequest *http.Request, target any, opts ...Opt
 			}
 		}
 	}
-	defer httpResponse.Body.Close()
-	data, err := io.ReadAll(io.LimitReader(httpResponse.Body, int64(d.config.MaxResponseSize+1)))
-	if err != nil {
-		return fmt.Errorf("FHIR response read failed (%s %s): %w", httpRequest.Method, httpRequest.URL.String(), err)
+	var data []byte
+	if httpResponse.Body != nil {
+		defer httpResponse.Body.Close()
+		data, err = io.ReadAll(io.LimitReader(httpResponse.Body, int64(d.config.MaxResponseSize+1)))
+		if err != nil {
+			return fmt.Errorf("FHIR response read failed (%s %s): %w", httpRequest.Method, httpRequest.URL.String(), err)
+		}
 	}
 	if httpResponse.StatusCode < 200 || httpResponse.StatusCode >= 300 {
 		if d.config.Non2xxStatusHandler != nil {
@@ -225,13 +245,15 @@ func (d BaseClient) doRequest(httpRequest *http.Request, target any, opts ...Opt
 	if err = checkForOperationOutcomeError(data, false, httpResponse.StatusCode); err != nil {
 		return err
 	}
-	switch target.(type) {
-	case *[]byte:
-		*target.(*[]byte) = data
-	default:
-		err = json.Unmarshal(data, target)
-		if err != nil {
-			return fmt.Errorf("FHIR response unmarshal failed (%s %s, status=%d): %w", httpRequest.Method, httpRequest.URL.String(), httpResponse.StatusCode, err)
+	if target != nil {
+		switch target.(type) {
+		case *[]byte:
+			*target.(*[]byte) = data
+		default:
+			err = json.Unmarshal(data, target)
+			if err != nil {
+				return fmt.Errorf("FHIR response unmarshal failed (%s %s, status=%d): %w", httpRequest.Method, httpRequest.URL.String(), httpResponse.StatusCode, err)
+			}
 		}
 	}
 

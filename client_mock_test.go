@@ -23,6 +23,7 @@ import (
 type MockClient struct {
 	ctrl     *gomock.Controller
 	recorder *MockClientMockRecorder
+	isgomock struct{}
 }
 
 // MockClientMockRecorder is the mock recorder for MockClient.
@@ -78,6 +79,44 @@ func (mr *MockClientMockRecorder) CreateWithContext(ctx, resource, result any, o
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]any{ctx, resource, result}, opts...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateWithContext", reflect.TypeOf((*MockClient)(nil).CreateWithContext), varargs...)
+}
+
+// Delete mocks base method.
+func (m *MockClient) Delete(path string, opts ...fhirclient.Option) error {
+	m.ctrl.T.Helper()
+	varargs := []any{path}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "Delete", varargs...)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Delete indicates an expected call of Delete.
+func (mr *MockClientMockRecorder) Delete(path any, opts ...any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]any{path}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockClient)(nil).Delete), varargs...)
+}
+
+// DeleteWithContext mocks base method.
+func (m *MockClient) DeleteWithContext(ctx context.Context, path string, opts ...fhirclient.Option) error {
+	m.ctrl.T.Helper()
+	varargs := []any{ctx, path}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "DeleteWithContext", varargs...)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteWithContext indicates an expected call of DeleteWithContext.
+func (mr *MockClientMockRecorder) DeleteWithContext(ctx, path any, opts ...any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]any{ctx, path}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteWithContext", reflect.TypeOf((*MockClient)(nil).DeleteWithContext), varargs...)
 }
 
 // Path mocks base method.
@@ -216,6 +255,7 @@ func (mr *MockClientMockRecorder) UpdateWithContext(ctx, path, resource, result 
 type MockHttpRequestDoer struct {
 	ctrl     *gomock.Controller
 	recorder *MockHttpRequestDoerMockRecorder
+	isgomock struct{}
 }
 
 // MockHttpRequestDoerMockRecorder is the mock recorder for MockHttpRequestDoer.
