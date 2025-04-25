@@ -152,6 +152,24 @@ func TestBaseClient_SearchWithContext(t *testing.T) {
 		_, _ = io.Copy(requestBody, stub.request.Body)
 		assert.Equal(t, "key=value", requestBody.String())
 	})
+	t.Run("use HTTP GET", func(t *testing.T) {
+		stub := &requestResponder{
+			response: okResponse(Resource{Id: "123"}),
+		}
+		client := fhirclient.New(baseURL, stub, &fhirclient.Config{
+			UsePostSearch: false,
+		})
+		var result Resource
+
+		err := client.SearchWithContext(context.Background(), "Resource", url.Values{"key": {"value"}}, &result)
+
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		assert.Equal(t, "http://example.com/fhir/Resource?key=value", stub.request.URL.String())
+		assert.Empty(t, stub.request.Header.Get("Content-Type"))
+		assert.Equal(t, http.MethodGet, stub.request.Method)
+		assert.Empty(t, stub.request.Body)
+	})
 	t.Run("invalid query", func(t *testing.T) {
 		stub := &requestResponder{
 			response: &http.Response{

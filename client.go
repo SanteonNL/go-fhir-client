@@ -90,12 +90,15 @@ type Config struct {
 	Non2xxStatusHandler func(response *http.Response, responseBody []byte)
 	// MaxResponseSize is the maximum size of a response body in bytes that will be read.
 	MaxResponseSize int
+	// UsePostSearch indicates whether to use POST for search operations.
+	UsePostSearch bool
 }
 
 func DefaultConfig() Config {
 	return Config{
 		// 10mb
 		MaxResponseSize: 10 * 1024 * 1024,
+		UsePostSearch:   true,
 	}
 }
 
@@ -132,12 +135,30 @@ func (d BaseClient) Read(path string, target any, opts ...Option) error {
 }
 
 func (d BaseClient) SearchWithContext(ctx context.Context, resourceType string, query url.Values, target any, opts ...Option) error {
-	opts = append([]Option{AtPath(resourceType + "/_search")}, opts...)
-	httpRequest, err := http.NewRequestWithContext(ctx, http.MethodPost, d.baseURL.String(), strings.NewReader(query.Encode()))
-	if err != nil {
-		return err
+	var httpRequest *http.Request
+	var err error
+	if d.config.UsePostSearch {
+		opts = append([]Option{AtPath(resourceType + "/_search")}, opts...)
+		httpRequest, err = http.NewRequestWithContext(ctx, http.MethodPost, d.baseURL.String(), strings.NewReader(query.Encode()))
+		if err != nil {
+			return err
+		}
+		httpRequest.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	} else {
+		opts = append([]Option{AtPath(resourceType)}, opts...)
+		searchURL := *d.baseURL
+		newQuery := searchURL.Query()
+		for key, values := range query {
+			for _, value := range values {
+				newQuery.Add(key, value)
+			}
+		}
+		searchURL.RawQuery = newQuery.Encode()
+		httpRequest, err = http.NewRequestWithContext(ctx, http.MethodGet, searchURL.String(), nil)
+		if err != nil {
+			return err
+		}
 	}
-	httpRequest.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	return d.doRequest(httpRequest, target, opts...)
 }
 
@@ -336,10 +357,23 @@ func AtUrl(u *url.URL) PreRequestOption {
 }
 
 // AtPath sets the path of the request. The path is appended to the base URL.
+// It retains the query parameters of the original request.
 func AtPath(path string) PreRequestOption {
 	return func(client Client, r *http.Request) {
+		query := r.URL.Query().Encode()
 		r.URL = client.Path(path)
+		r.URL.RawQuery = query
 	}
+}
+
+var searchWithHTTPGetOption PreRequestOption = func(Client, *http.Request) {
+
+	// noop
+}
+
+// SearchWithHTTPGet is a PreRequestOption that changes the HTTP method of a search operation to GET (by default, it performs a POST operation) and adds the query parameters to the URL.
+func SearchWithHTTPGet() PreRequestOption {
+	return searchWithHTTPGetOption
 }
 
 // Headers contains the response headers as received from the server.
