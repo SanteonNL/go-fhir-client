@@ -92,6 +92,8 @@ type Config struct {
 	MaxResponseSize int
 	// UsePostSearch indicates whether to use POST for search operations.
 	UsePostSearch bool
+	// DefaultOptions are the default options that are applied to all requests.
+	DefaultOptions []Option
 }
 
 func DefaultConfig() Config {
@@ -116,6 +118,7 @@ func (d BaseClient) Path(path ...string) *url.URL {
 }
 
 func (d BaseClient) ReadWithContext(ctx context.Context, path string, target any, opts ...Option) error {
+	opts = append(d.config.DefaultOptions, opts...)
 	absUrl, _ := url.Parse(path)
 	if absUrl.IsAbs() {
 		opts = append([]Option{AtUrl(absUrl)}, opts...)
@@ -135,6 +138,7 @@ func (d BaseClient) Read(path string, target any, opts ...Option) error {
 }
 
 func (d BaseClient) SearchWithContext(ctx context.Context, resourceType string, query url.Values, target any, opts ...Option) error {
+	opts = append(d.config.DefaultOptions, opts...)
 	var httpRequest *http.Request
 	var err error
 	if d.config.UsePostSearch {
@@ -167,6 +171,7 @@ func (d BaseClient) Search(resourceType string, query url.Values, target any, op
 }
 
 func (d BaseClient) CreateWithContext(ctx context.Context, resource any, result any, opts ...Option) error {
+	opts = append(d.config.DefaultOptions, opts...)
 	desc, err := DescribeResource(resource)
 	if err != nil {
 		return err
@@ -186,6 +191,7 @@ func (d BaseClient) Create(resource any, result any, opts ...Option) error {
 }
 
 func (d BaseClient) UpdateWithContext(ctx context.Context, path string, resource any, result any, opts ...Option) error {
+	opts = append(d.config.DefaultOptions, opts...)
 	data, err := json.Marshal(resource)
 	if err != nil {
 		return err
@@ -208,6 +214,7 @@ func (d BaseClient) Delete(path string, opts ...Option) error {
 }
 
 func (d BaseClient) DeleteWithContext(ctx context.Context, path string, opts ...Option) error {
+	opts = append(d.config.DefaultOptions, opts...)
 	opts = append([]Option{AtPath(path)}, opts...)
 	httpRequest, err := http.NewRequestWithContext(ctx, http.MethodDelete, d.baseURL.String(), nil)
 	if err != nil {

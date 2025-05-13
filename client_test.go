@@ -77,6 +77,19 @@ func TestDefaultClient_Read(t *testing.T) {
 		require.NotNil(t, result)
 		assert.Equal(t, "http://example.com/fhir/123", stub.request.URL.String())
 	})
+	t.Run("with default options", func(t *testing.T) {
+		stub := &requestResponder{
+			response: okResponse(Resource{Id: "123"}),
+		}
+		client := fhirclient.New(baseURL, stub, &fhirclient.Config{
+			DefaultOptions: []fhirclient.Option{fhirclient.RequestHeaders(map[string][]string{"Test": {"present"}})},
+		})
+
+		err := client.Read("Resource/123", new(Resource))
+
+		require.NoError(t, err)
+		assert.Equal(t, "present", stub.request.Header.Get("Test"))
+	})
 }
 
 func TestBaseClient_Create(t *testing.T) {
@@ -106,6 +119,19 @@ func TestBaseClient_Create(t *testing.T) {
 		require.NotNil(t, result)
 		assert.Equal(t, "http://example.com/fhir/123", stub.request.URL.String())
 	})
+	t.Run("with default options", func(t *testing.T) {
+		stub := &requestResponder{
+			response: okResponse(Resource{Id: "123"}),
+		}
+		client := fhirclient.New(baseURL, stub, &fhirclient.Config{
+			DefaultOptions: []fhirclient.Option{fhirclient.RequestHeaders(map[string][]string{"Test": {"present"}})},
+		})
+
+		err := client.Create(Resource{Id: "123"}, new(Resource))
+
+		require.NoError(t, err)
+		assert.Equal(t, "present", stub.request.Header.Get("Test"))
+	})
 }
 
 func TestBaseClient_DeleteWithContext(t *testing.T) {
@@ -130,6 +156,19 @@ func TestBaseClient_DeleteWithContext(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.Equal(t, "http://example.com/fhir/123", stub.request.URL.String())
+	})
+	t.Run("with default options", func(t *testing.T) {
+		stub := &requestResponder{
+			response: &http.Response{StatusCode: http.StatusNoContent},
+		}
+		client := fhirclient.New(baseURL, stub, &fhirclient.Config{
+			DefaultOptions: []fhirclient.Option{fhirclient.RequestHeaders(map[string][]string{"Test": {"present"}})},
+		})
+
+		err := client.DeleteWithContext(context.Background(), "Resource/123")
+
+		require.NoError(t, err)
+		assert.Equal(t, "present", stub.request.Header.Get("Test"))
 	})
 }
 
@@ -191,6 +230,19 @@ func TestBaseClient_SearchWithContext(t *testing.T) {
 		requestBody := new(bytes.Buffer)
 		_, _ = io.Copy(requestBody, stub.request.Body)
 		assert.Equal(t, "invalid=query", requestBody.String())
+	})
+	t.Run("with default options", func(t *testing.T) {
+		stub := &requestResponder{
+			response: okResponse(Resource{Id: "123"}),
+		}
+		client := fhirclient.New(baseURL, stub, &fhirclient.Config{
+			DefaultOptions: []fhirclient.Option{fhirclient.RequestHeaders(map[string][]string{"Test": {"present"}})},
+		})
+
+		err := client.SearchWithContext(context.Background(), "Resource", url.Values{"key": {"value"}}, new(Resource))
+
+		require.NoError(t, err)
+		assert.Equal(t, "present", stub.request.Header.Get("Test"))
 	})
 }
 
