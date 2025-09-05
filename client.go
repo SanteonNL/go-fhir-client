@@ -373,16 +373,6 @@ func AtPath(path string) PreRequestOption {
 	}
 }
 
-var searchWithHTTPGetOption PreRequestOption = func(Client, *http.Request) {
-
-	// noop
-}
-
-// SearchWithHTTPGet is a PreRequestOption that changes the HTTP method of a search operation to GET (by default, it performs a POST operation) and adds the query parameters to the URL.
-func SearchWithHTTPGet() PreRequestOption {
-	return searchWithHTTPGetOption
-}
-
 // Headers contains the response headers as received from the server.
 type Headers struct {
 	http.Header
