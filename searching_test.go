@@ -169,6 +169,33 @@ func TestPaginate(t *testing.T) {
 		assert.Contains(t, err.Error(), "paginate: invalid 'next' link for search set")
 	})
 
+	t.Run("invalid next URL: not starting with FHIR base URL", func(t *testing.T) {
+		bundle := fhir.Bundle{
+			Link: []fhir.BundleLink{
+				{
+					Relation: "next",
+					Url:      "https://other-server.com/fhir",
+				},
+			},
+		}
+
+		stub := &requestsResponder{
+			responses: []*http.Response{},
+		}
+
+		client := New(baseURL, stub, nil)
+		ctx := context.Background()
+
+		consumeFunc := func(bundle *fhir.Bundle) (bool, error) {
+			return true, nil
+		}
+
+		err := Paginate(ctx, client, bundle, consumeFunc)
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "paginate: next link for search set does not start with expected FHIR base URL")
+	})
+
 	t.Run("max iterations reached", func(t *testing.T) {
 		// Create bundle that always has a next link
 		bundle := createBundleWithNextLink("http://example.com/fhir/page2")

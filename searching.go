@@ -19,6 +19,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"strings"
 
 	"github.com/zorgbijjou/golang-fhir-models/fhir-models/fhir"
 )
@@ -55,6 +56,9 @@ func Paginate(ctx context.Context, fhirClient Client, searchSet fhir.Bundle, con
 				var err error
 				if nextURL, err = url.Parse(link.Url); err != nil {
 					return fmt.Errorf("paginate: invalid 'next' link for search set: %w", err)
+				}
+				if !strings.HasPrefix(link.Url, fhirClient.Path().String()) {
+					return fmt.Errorf("paginate: next link for search set does not start with expected FHIR base URL")
 				}
 				hasNext = true
 			}
