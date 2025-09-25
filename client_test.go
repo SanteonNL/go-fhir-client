@@ -428,6 +428,24 @@ func TestDefaultClient_doRequest(t *testing.T) {
 		require.NotNil(t, result)
 		assert.Equal(t, "http://example.com/fhir/Resource/123", stub.request.URL.String())
 	})
+	t.Run("prevent request breaking out of FHIR base URL", func(t *testing.T) {
+		client := fhirclient.New(baseURL, &requestResponder{}, nil)
+
+		err := client.Read("http://example.com/other/Patient/1", nil)
+
+		require.EqualError(t, err, "FHIR request URL is outside the base URL hierarchy: http://example.com/other/Patient/1")
+	})
+	t.Run("allow request breaking out of FHIR base URL", func(t *testing.T) {
+		client := fhirclient.New(baseURL, &requestResponder{
+			response: okResponse(Resource{Id: "123"}),
+		}, &fhirclient.Config{
+			AllowOutsideBaseURLRequests: true,
+		})
+
+		err := client.Read("http://example.com/other/Patient/1", nil)
+
+		require.NoError(t, err)
+	})
 }
 
 func TestResponseHeaders(t *testing.T) {
