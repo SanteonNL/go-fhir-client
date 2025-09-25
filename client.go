@@ -94,13 +94,17 @@ type Config struct {
 	UsePostSearch bool
 	// DefaultOptions are the default options that are applied to all requests.
 	DefaultOptions []Option
+	// AllowOutsideBaseURLRequests can be set to allow FHIR requests to URLs outside the hierarchy of the FHIR base URL.
+	// It is disabled by default to prevent SSRF attacks.
+	AllowOutsideBaseURLRequests bool
 }
 
 func DefaultConfig() Config {
 	return Config{
 		// 10mb
-		MaxResponseSize: 10 * 1024 * 1024,
-		UsePostSearch:   true,
+		MaxResponseSize:             10 * 1024 * 1024,
+		UsePostSearch:               true,
+		AllowOutsideBaseURLRequests: false,
 	}
 }
 
@@ -238,6 +242,13 @@ func (d BaseClient) doRequest(httpRequest *http.Request, target any, opts ...Opt
 	}
 	newHttpRequest.Header = httpRequest.Header
 	*httpRequest = *newHttpRequest
+
+	if !d.config.AllowOutsideBaseURLRequests {
+		// Prevent SSRF attacks by ensuring that the request URL is within the base URL hierarchy.
+		if !strings.HasPrefix(httpRequest.URL.String(), d.baseURL.String()) {
+			return fmt.Errorf("FHIR request URL is outside the base URL hierarchy: %s", httpRequest.URL.String())
+		}
+	}
 
 	httpResponse, err := d.httpClient.Do(httpRequest)
 	if err != nil {
