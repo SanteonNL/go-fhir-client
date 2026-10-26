@@ -228,7 +228,12 @@ func (d BaseClient) DeleteWithContext(ctx context.Context, path string, opts ...
 }
 
 func (d BaseClient) doRequest(httpRequest *http.Request, target any, opts ...Option) error {
+	callerTarget := target
 	addHeaderValueIfNotPresent(&httpRequest.Header, "Accept", FhirJsonMediaType)
+	returnRepresentation := hasOption[returnRepresentationOption](opts)
+	if returnRepresentation {
+		setHeaderValueIfNotPresent(&httpRequest.Header, "Prefer", "return=representation")
+	}
 	// Execute pre-request options
 	for _, opt := range opts {
 		if fn, ok := opt.(PreRequestOption); ok {
@@ -284,6 +289,16 @@ func (d BaseClient) doRequest(httpRequest *http.Request, target any, opts ...Opt
 	if err = checkForOperationOutcomeError(data, false, httpResponse.StatusCode); err != nil {
 		return err
 	}
+	if target != nil && len(bytes.TrimSpace(data)) == 0 && httpRequest.Method != http.MethodGet {
+		// A create, update or delete may legitimately answer without a body (e.g. 201 or 204 under
+		// Prefer: return=minimal): that leaves the target as it is, rather than failing to unmarshal.
+		if returnRepresentation {
+			if err := d.readRepresentation(httpRequest, httpResponse, target); err != nil {
+				return err
+			}
+		}
+		target = nil
+	}
 	if target != nil {
 		switch target.(type) {
 		case *[]byte:
@@ -298,10 +313,30 @@ func (d BaseClient) doRequest(httpRequest *http.Request, target any, opts ...Opt
 
 	for _, opt := range opts {
 		if fn, ok := opt.(PostParseOption); ok {
-			if err := fn(d, target); err != nil {
+			if err := fn(d, callerTarget); err != nil {
 				return err
 			}
 		}
+	}
+	return nil
+}
+
+// readRepresentation reads the resource a create or update stored into target, for a server that
+// didn't return it in the response body: from the response's Location, or else (for an update) from
+// the URL that was written to.
+func (d BaseClient) readRepresentation(httpRequest *http.Request, httpResponse *http.Response, target any) error {
+	location := httpResponse.Header.Get("Location")
+	if location == "" {
+		location = httpResponse.Header.Get("Content-Location")
+	}
+	if location == "" && httpRequest.Method == http.MethodPut {
+		location = httpRequest.URL.String()
+	}
+	if location == "" {
+		return fmt.Errorf("FHIR server returned neither the stored resource nor its location (%s %s, status=%d)", httpRequest.Method, httpRequest.URL.String(), httpResponse.StatusCode)
+	}
+	if err := d.ReadWithContext(httpRequest.Context(), location, target); err != nil {
+		return fmt.Errorf("FHIR read of the stored resource failed: %w", err)
 	}
 	return nil
 }
@@ -367,6 +402,27 @@ func RequestHeaders(headers http.Header) PreRequestOption {
 	}
 }
 
+// ReturnRepresentation makes a create or update yield the resource as the server stored it (with its
+// server-assigned id, meta.versionId, etc.) in the result. It asks for it with
+// Prefer: return=representation; a server that answers without a body anyway has the resource read
+// from the response's Location (or, for an update, from the URL that was written to). Response
+// options such as ResponseHeaders and ResponseStatusCode still describe the write's response.
+func ReturnRepresentation() Option {
+	return returnRepresentationOption{}
+}
+
+type returnRepresentationOption struct{}
+
+// hasOption reports whether opts contain an option of type T.
+func hasOption[T any](opts []Option) bool {
+	for _, opt := range opts {
+		if _, ok := opt.(T); ok {
+			return true
+		}
+	}
+	return false
+}
+
 // AtUrl sets the URL of the request.
 func AtUrl(u *url.URL) PreRequestOption {
 	return func(_ Client, r *http.Request) {
@@ -398,13 +454,10 @@ func ResponseHeaders(headers *Headers) PostRequestOption {
 	return func(_ Client, r *http.Response) error {
 		var result Headers
 		result.Header = r.Header
-		if len(r.Header["ETag"]) > 0 {
-			result.ETag = r.Header["ETag"][0]
-		}
+		result.ETag = headerValue(r.Header, "ETag")
 		result.ContentType = r.Header.Get("Content-Type")
-		if len(r.Header["LastModified"]) > 0 {
-			lastModified, _ := time.Parse(http.TimeFormat, r.Header["LastModified"][0])
-			result.LastModified = lastModified
+		if lastModified := headerValue(r.Header, "Last-Modified", "LastModified"); lastModified != "" {
+			result.LastModified, _ = time.Parse(http.TimeFormat, lastModified)
 		}
 		if date := r.Header.Get("Date"); date != "" {
 			dateTime, _ := time.Parse(http.TimeFormat, date)
@@ -421,6 +474,21 @@ func ResponseStatusCode(statusCode *int) PostRequestOption {
 		*statusCode = r.StatusCode
 		return nil
 	}
+}
+
+// headerValue returns the first value of the first of the named headers present. It looks each name up
+// both canonicalized (as net/http stores received headers: "ETag" becomes "Etag") and as given (as a
+// header map built by hand may hold it).
+func headerValue(header http.Header, names ...string) string {
+	for _, name := range names {
+		if value := header.Get(name); value != "" {
+			return value
+		}
+		if values := header[name]; len(values) > 0 {
+			return values[0]
+		}
+	}
+	return ""
 }
 
 // addHeaderValueIfNotPresent adds the given value to the header if it is not already present. This prevents duplicates.

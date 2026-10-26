@@ -10,6 +10,9 @@ For example usage, see ``client_example_test.go``.
 - Creating FHIR resources
 - Updating FHIR resources
 - Resolving references
+- Getting the resource as the server stored it after a create or update (`ReturnRepresentation()`): it sends
+  `Prefer: return=representation`, and reads the resource from the response's `Location` if the server answers
+  without a body anyway.
 
 Not supported/TODO:
 
